@@ -41,6 +41,12 @@ function ANode({ id }: { id: string }) {
 		objectId: id,
 	});
 
+	// sync position to some external source
+	useEffect(
+		() => someExternalPosition.subscribe(canvasObject.moveTo),
+		[canvasObject],
+	);
+
 	return (
 		<CanvasObjectRoot canvasObject={canvasObject}>
 			<CanvasObjectDragHandle>Drag me</CanvasObjectDragHandle>

@@ -1,6 +1,6 @@
 import { EventSubscriber } from '@a-type/utils';
 import { SpringValue, to } from '@react-spring/web';
-import { Box, LiveVector2, Vector2 } from './types.js';
+import { Box, LiveVector2, Vector2 } from '../types.js';
 import { SpatialHash } from './SpatialHash.js';
 
 export interface Bounds {

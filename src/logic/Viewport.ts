@@ -1,5 +1,5 @@
 import { EventSubscriber, preventDefault } from '@a-type/utils';
-import { Size, Vector2, RectLimits, Box } from './types.js';
+import { Size, Vector2, RectLimits, Box } from '../types.js';
 import {
 	addVectors,
 	clamp,
@@ -121,12 +121,13 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 		this._config = {
 			defaultZoom: 1,
 			zoomLimits: { min: 0.25, max: 2 },
-			panLimits: canvas.limits
-				? {
+			panLimits:
+				canvas.limits ?
+					{
 						max: multiplyVector(canvas.limits.max, 1.5),
 						min: multiplyVector(canvas.limits.min, 1.5),
-				  }
-				: undefined,
+					}
+				:	undefined,
 			...config,
 		};
 

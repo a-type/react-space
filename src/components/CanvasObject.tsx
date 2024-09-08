@@ -18,17 +18,17 @@ import {
 	useRegister,
 } from './canvasHooks.js';
 import { useCanvas } from './CanvasProvider.jsx';
-import { SPRINGS } from './constants.js';
+import { SPRINGS } from '../constants.js';
 import {
 	addVectors,
 	snapshotLiveVector,
 	vectorDistance,
 	vectorLength,
-} from './math.js';
-import { useRerasterize } from './rerasterizeSignal.js';
-import { Vector2 } from './types.js';
+} from '../logic/math.js';
+import { useRerasterize } from '../logic/rerasterizeSignal.js';
+import { Vector2 } from '../types.js';
 import { useGesture } from '@use-gesture/react';
-import { CanvasGestureInfo } from './Canvas.js';
+import { CanvasGestureInfo } from '../logic/Canvas.js';
 import { useMergedRef } from '../hooks.js';
 
 export interface CanvasObjectRootProps extends HTMLAttributes<HTMLDivElement> {

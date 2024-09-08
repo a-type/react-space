@@ -8,10 +8,10 @@ import {
 } from 'react';
 import { useCanvas } from './CanvasProvider.jsx';
 import { SpringValue, to } from '@react-spring/web';
-import { CanvasGestureInfo } from './Canvas.js';
+import { CanvasGestureInfo } from '../logic/Canvas.js';
 import { useSnapshot } from 'valtio';
-import { closestLivePoint } from './math.js';
-import { LiveVector2 } from './types.js';
+import { closestLivePoint } from '../logic/math.js';
+import { LiveVector2 } from '../types.js';
 
 export function useRegister(objectId: string, metadata?: any) {
 	const canvas = useCanvas();

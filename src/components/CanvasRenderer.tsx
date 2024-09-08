@@ -1,9 +1,9 @@
 import { animated, to, useSpring } from '@react-spring/web';
-import { SPRINGS } from './constants.js';
-import { Vector2 } from './types.js';
-import { rerasterizeSignal } from './rerasterizeSignal.js';
+import { SPRINGS } from '../constants.js';
+import { Vector2 } from '../types.js';
+import { rerasterizeSignal } from '../logic/rerasterizeSignal.js';
 import { useViewport } from './ViewportRoot.jsx';
-import { ViewportEventOrigin } from './Viewport.js';
+import { ViewportEventOrigin } from '../logic/Viewport.js';
 import { CSSProperties, ReactNode, useEffect, useRef, useState } from 'react';
 import { useCanvas } from './CanvasProvider.jsx';
 

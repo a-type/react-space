@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useCanvasRect } from './canvasHooks.js';
-import { useRerasterize } from './rerasterizeSignal.js';
+import { useRerasterize } from '../logic/rerasterizeSignal.js';
 
 export interface IViewportWallpaperProps {
 	children?: React.ReactNode;

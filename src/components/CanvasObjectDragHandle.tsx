@@ -14,13 +14,13 @@ import {
 	roundVector,
 	subtractVectors,
 	vectorLength,
-} from './math.js';
+} from '../logic/math.js';
 import { useCanvas } from './CanvasProvider.jsx';
-import { Vector2 } from './types.js';
-import { AutoPan } from './AutoPan.js';
+import { Vector2 } from '../types.js';
+import { AutoPan } from '../logic/AutoPan.js';
 import { useGesture } from '@use-gesture/react';
-import { CanvasGestureInput } from './Canvas.js';
-import { applyGestureState } from './gestureUtils.js';
+import { CanvasGestureInput } from '../logic/Canvas.js';
+import { applyGestureState } from '../logic/gestureUtils.js';
 import { useDragLocked } from './canvasHooks.js';
 
 export interface CanvasObjectDragHandleProps {

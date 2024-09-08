@@ -2,7 +2,7 @@ import { CSSProperties, ReactNode, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useCanvasRect } from './canvasHooks.js';
 import { useCanvas } from './CanvasProvider.jsx';
-import { useRerasterize } from './rerasterizeSignal.js';
+import { useRerasterize } from '../logic/rerasterizeSignal.js';
 
 export interface CanvasSvgLayerProps {
 	children: ReactNode;

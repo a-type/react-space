@@ -1,7 +1,7 @@
 import { createContext, CSSProperties, useCallback, useRef } from 'react';
 import { useCanvas } from './CanvasProvider.jsx';
-import { Size } from './types.js';
-import { Viewport } from './Viewport.js';
+import { Size } from '../types.js';
+import { Viewport } from '../logic/Viewport.js';
 import {
 	useKeyboardControls,
 	useViewportGestureControls,

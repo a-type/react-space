@@ -1,5 +1,5 @@
 import { createContext, ReactNode, useContext, useState } from 'react';
-import { Canvas, CanvasOptions } from './Canvas.js';
+import { Canvas, CanvasOptions } from '../logic/Canvas.js';
 import { useCanvasGestures } from './canvasHooks.js';
 
 // A 'default' implementation of CanvasContext which essentially does nothing,

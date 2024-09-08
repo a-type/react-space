@@ -7,9 +7,9 @@ import {
 	useRef,
 } from 'react';
 import { useCanvas } from './CanvasProvider.jsx';
-import { Vector2 } from './types.js';
-import { Viewport } from './Viewport.js';
-import { gestureStateToInput } from './gestureUtils.js';
+import { Vector2 } from '../types.js';
+import { Viewport } from '../logic/Viewport.js';
+import { gestureStateToInput } from '../logic/gestureUtils.js';
 import { useStableCallback } from '../hooks.js';
 
 /**

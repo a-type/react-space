@@ -1,5 +1,5 @@
 import { to } from '@react-spring/web';
-import { LiveSize, LiveVector2, Vector2 } from './types.js';
+import { LiveSize, LiveVector2, Vector2 } from '../types.js';
 
 /**
  * Constrains a number to be between a min and max value
@@ -203,12 +203,10 @@ export function closestLivePoint(
 
 			const shouldCapX = Math.abs(projectedX) > sourceWidth / 2;
 			const shouldCapY = Math.abs(projectedY) > sourceHeight / 2;
-			let cappedX = shouldCapX
-				? (Math.sign(projectedX) * sourceWidth) / 2
-				: projectedX;
-			let cappedY = shouldCapY
-				? (Math.sign(projectedY) * sourceHeight) / 2
-				: projectedY;
+			let cappedX =
+				shouldCapX ? (Math.sign(projectedX) * sourceWidth) / 2 : projectedX;
+			let cappedY =
+				shouldCapY ? (Math.sign(projectedY) * sourceHeight) / 2 : projectedY;
 
 			// steer toward center of the met side of the boundary and adjust
 			// for shorten size

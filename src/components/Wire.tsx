@@ -1,12 +1,12 @@
 import { animated, to } from '@react-spring/web';
 import { CSSProperties, SVGProps, useEffect, useMemo, useState } from 'react';
-import { LiveVector2 } from './types.js';
+import { LiveVector2 } from '../types.js';
 import { useGesture } from '@use-gesture/react';
-import { getWireBezierForEndPoints } from './math.js';
+import { getWireBezierForEndPoints } from '../logic/math.js';
 import { useViewport } from './ViewportRoot.jsx';
 import { useRegister } from './canvasHooks.js';
 import { useCanvas } from './CanvasProvider.jsx';
-import { CanvasGestureInfo } from './Canvas.js';
+import { CanvasGestureInfo } from '../logic/Canvas.js';
 
 export interface WireProps extends Omit<SVGProps<SVGPathElement>, 'ref'> {
 	sourcePosition: LiveVector2;

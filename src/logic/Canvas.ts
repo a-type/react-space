@@ -3,7 +3,7 @@ import { SpringValue, to } from '@react-spring/web';
 import { clampVector, snap } from './math.js';
 import { ObjectBounds } from './ObjectBounds.js';
 import { Selections } from './Selections.js';
-import { RectLimits, Vector2 } from './types.js';
+import { RectLimits, Vector2 } from '../types.js';
 import { Viewport, ViewportConfig, ViewportEventOrigin } from './Viewport.js';
 import { proxy } from 'valtio';
 

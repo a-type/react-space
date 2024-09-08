@@ -255,7 +255,7 @@ export const ZERO_BOUNDS = {
  */
 export function useClosestLiveObjectBoundaryPosition(
 	objectId: string,
-	closestTo: LiveVector2 | null,
+	closestTo: LiveVector2 | null | undefined,
 ) {
 	const targetCenter = useLiveObjectCenter(objectId) ?? ZERO_CENTER;
 	const targetBounds = useLiveObjectSize(objectId) ?? ZERO_BOUNDS;

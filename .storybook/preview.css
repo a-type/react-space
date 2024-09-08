@@ -1,0 +1,34 @@
+#storybook-root {
+	width: 100vw;
+	height: 100vh;
+}
+
+.background {
+	background-color: #b3fff5;
+	border-radius: 50px;
+}
+
+.outer {
+	background-color: #f0f0f0;
+}
+
+.node {
+	background-color: #088776;
+	border-radius: 50px;
+	width: 100px;
+	height: 100px;
+	color: white;
+}
+
+.handle {
+	background-color: white;
+	width: 40px;
+	height: 40px;
+	border-radius: 50%;
+}
+
+.wire {
+	stroke: #ecfeff;
+	stroke-width: 1;
+	z-index: 1;
+}

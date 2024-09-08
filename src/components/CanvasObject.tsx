@@ -1,4 +1,4 @@
-import { animated, to, useSpring } from '@react-spring/web';
+import { animated, Interpolation, to, useSpring } from '@react-spring/web';
 import {
 	createContext,
 	CSSProperties,
@@ -14,6 +14,7 @@ import {
 } from 'react';
 import {
 	useIsSelected,
+	useLiveObjectOrigin,
 	useObjectGestures,
 	useRegister,
 } from './canvasHooks.js';
@@ -22,14 +23,21 @@ import { SPRINGS } from '../constants.js';
 import {
 	addVectors,
 	snapshotLiveVector,
+	subtractVectors,
 	vectorDistance,
 	vectorLength,
 } from '../logic/math.js';
 import { useRerasterize } from '../logic/rerasterizeSignal.js';
 import { Vector2 } from '../types.js';
 import { useGesture } from '@use-gesture/react';
-import { CanvasGestureInfo } from '../logic/Canvas.js';
+import {
+	CanvasGestureInfo,
+	ObjectContainmentEvent,
+	ObjectRegistration,
+} from '../logic/Canvas.js';
 import { useMergedRef } from '../hooks.js';
+import { preventDefault } from '@a-type/utils';
+import { createPortal } from 'react-dom';
 
 export interface CanvasObjectRootProps extends HTMLAttributes<HTMLDivElement> {
 	canvasObject: CanvasObject;
@@ -52,14 +60,17 @@ export function CanvasObjectRoot({
 	useRerasterize(ref);
 	// useHideOffscreen(ref);
 
-	const register = useRegister(canvasObject.id, canvasObject.metadata);
+	const register = useRegister(
+		canvasObject.id,
+		canvasObject.metadata,
+		canvasObject.registration,
+	);
 	const finalRef = useMergedRef(ref, register);
 
 	const canvas = useCanvas();
 	const bind = useGesture({
 		onDragEnd: (info) => {
 			if (info.tap) {
-				console.debug(`claiming tap gesture for ${canvasObject.id}`);
 				canvas.gestureState.claimedBy = canvasObject.id;
 				onTap?.({
 					alt: info.altKey,
@@ -81,27 +92,32 @@ export function CanvasObjectRoot({
 	});
 
 	return (
-		<CanvasObjectContext.Provider value={canvasObject}>
-			<animated.div
-				ref={finalRef}
-				// this is blocking undo keybinds...
-				// onKeyDown={stopPropagation}
-				// onKeyUp={stopPropagation}
-				// onDragStart={preventDefault}
-				// onDragEnd={preventDefault}
-				// onDrag={preventDefault}
-				{...canvasObject.rootProps}
-				style={{
-					...baseStyle,
-					...style,
-					...canvasObject.rootProps.style,
-				}}
-				{...bind()}
-				{...rest}
-			>
-				{children}
-			</animated.div>
-		</CanvasObjectContext.Provider>
+		<ContainerPortal
+			containerId={canvasObject.containerId}
+			disabled={canvasObject.isDragging}
+		>
+			<CanvasObjectContext.Provider value={canvasObject}>
+				<animated.div
+					ref={finalRef}
+					// this is blocking undo keybinds...
+					// onKeyDown={stopPropagation}
+					// onKeyUp={stopPropagation}
+					onDragStart={preventDefault}
+					onDragEnd={preventDefault}
+					onDrag={preventDefault}
+					{...canvasObject.rootProps}
+					style={{
+						...baseStyle,
+						...style,
+						...canvasObject.rootProps.style,
+					}}
+					{...bind()}
+					{...rest}
+				>
+					{children}
+				</animated.div>
+			</CanvasObjectContext.Provider>
+		</ContainerPortal>
 	);
 }
 
@@ -111,6 +127,8 @@ export interface CanvasObject {
 	moveTo: (position: Vector2, interpolate?: boolean) => void;
 	id: string;
 	metadata: any;
+	registration: ObjectRegistration<any>;
+	containerId: string | null;
 }
 
 const CanvasObjectContext = createContext<CanvasObject | null>(null);
@@ -125,6 +143,12 @@ export function useCanvasObjectContext() {
 	return ctx;
 }
 
+export interface CanvasObjectDragEvent {
+	info: CanvasGestureInfo;
+	worldPosition: Vector2;
+	containerPosition?: Vector2;
+}
+
 export function useCanvasObject({
 	initialPosition,
 	objectId,
@@ -132,13 +156,19 @@ export function useCanvasObject({
 	onDrop,
 	onDrag,
 	metadata,
+	canContain,
+	containerPriority,
+	containerId = null,
 }: {
 	initialPosition: Vector2;
 	objectId: string;
-	onDrop?: (pos: Vector2) => any;
-	onDrag?: (pos: Vector2) => any;
+	onDrop?: (event: CanvasObjectDragEvent) => any;
+	onDrag?: (event: CanvasObjectDragEvent) => any;
 	zIndex?: number;
 	metadata?: any;
+	canContain?: (event: ObjectContainmentEvent<any>) => boolean;
+	containerPriority?: number;
+	containerId?: string | null;
 }) {
 	const canvas = useCanvas();
 
@@ -173,6 +203,19 @@ export function useCanvasObject({
 
 	const { selected } = useIsSelected(objectId);
 
+	const eventRef = useRef<CanvasObjectDragEvent>({
+		info: {
+			alt: false,
+			ctrlOrMeta: false,
+			delta: { x: 0, y: 0 },
+			intentional: false,
+			shift: false,
+			worldPosition: { x: 0, y: 0 },
+			targetId: objectId,
+		},
+		worldPosition: { x: 0, y: 0 },
+	});
+
 	useObjectGestures({
 		onDragStart: (info) => {
 			if (!selected && info.targetId !== objectId) return;
@@ -189,7 +232,19 @@ export function useCanvasObject({
 				snapshotLiveVector(positionStyle),
 				info.delta,
 			);
-			onDrag?.(finalPosition);
+			eventRef.current.info = info;
+			eventRef.current.worldPosition = finalPosition;
+			eventRef.current.containerPosition = undefined;
+			if (info.containerId) {
+				const containerOrigin = canvas.bounds.getOrigin(info.containerId);
+				if (containerOrigin) {
+					eventRef.current.containerPosition = subtractVectors(
+						finalPosition,
+						snapshotLiveVector(containerOrigin),
+					);
+				}
+			}
+			onDrag?.(eventRef.current);
 			positionSpring.set(finalPosition);
 			if (vectorLength(info.delta) > 5) {
 				setIsDragging(true);
@@ -200,7 +255,19 @@ export function useCanvasObject({
 			const finalPosition = canvas.snapPosition(
 				addVectors(snapshotLiveVector(positionStyle), info.delta),
 			);
-			onDrop?.(finalPosition);
+			eventRef.current.info = info;
+			eventRef.current.worldPosition = finalPosition;
+			eventRef.current.containerPosition = undefined;
+			if (info.containerId) {
+				const containerOrigin = canvas.bounds.getOrigin(info.containerId);
+				if (containerOrigin) {
+					eventRef.current.containerPosition = subtractVectors(
+						finalPosition,
+						snapshotLiveVector(containerOrigin),
+					);
+				}
+			}
+			onDrop?.(eventRef.current);
 			// animate to final position
 			positionSpring.start(finalPosition);
 			// we leave this flag on for a few ms - the "drag" gesture
@@ -213,19 +280,38 @@ export function useCanvasObject({
 		},
 	});
 
+	const parentLivePosition = useLiveObjectOrigin(containerId);
+
 	const canvasObject: CanvasObject = useMemo(() => {
+		let transform: Interpolation<string>;
+		/**
+		 * Translate to the correct position, offset by origin,
+		 * and apply a subtle bouncing scale effect when picked
+		 * up or dropped.
+		 */
+		if (parentLivePosition) {
+			transform = to(
+				[
+					positionStyle.x,
+					positionStyle.y,
+					parentLivePosition.x,
+					parentLivePosition.y,
+					pickupSpring.value,
+				],
+				(xv, yv, px, py, grabEffect) =>
+					`translate(${xv + px}px, ${yv + py}px) scale(${1 + 0.05 * grabEffect})`,
+			);
+		} else {
+			transform = to(
+				[positionStyle.x, positionStyle.y, pickupSpring.value],
+				(xv, yv, grabEffect) =>
+					`translate(${xv}px, ${yv}px) scale(${1 + 0.05 * grabEffect})`,
+			);
+		}
+
 		const rootProps = {
 			style: {
-				/**
-				 * Translate to the correct position, offset by origin,
-				 * and apply a subtle bouncing scale effect when picked
-				 * up or dropped.
-				 */
-				transform: to(
-					[positionStyle.x, positionStyle.y, pickupSpring.value],
-					(xv, yv, grabEffect) =>
-						`translate(${xv}px, ${yv}px) scale(${1 + 0.05 * grabEffect})`,
-				),
+				transform,
 				zIndex,
 				cursor: isDragging ? 'grab' : 'inherit',
 			},
@@ -237,10 +323,35 @@ export function useCanvasObject({
 			moveTo,
 			id: objectId,
 			metadata,
+			registration: {
+				canContain,
+				containerPriority,
+			},
+			containerId,
 		};
-	}, [canvas, pickupSpring, zIndex, isDragging, objectId]);
+	}, [
+		positionStyle,
+		pickupSpring,
+		zIndex,
+		isDragging,
+		objectId,
+		containerId,
+		parentLivePosition,
+	]);
 
 	return canvasObject;
+}
+
+export function useContainerCandidate(objectId: string) {
+	const canvas = useCanvas();
+	const [isContainerCandidate, setIsContainerCandidate] = useState(false);
+	useEffect(() => {
+		return canvas.subscribe('containerCandidateChange', (candidate) => {
+			setIsContainerCandidate(candidate === objectId);
+		});
+	}, [objectId]);
+
+	return isContainerCandidate;
 }
 
 function useHideOffscreen(ref: RefObject<HTMLDivElement | null>) {
@@ -268,3 +379,35 @@ function useHideOffscreen(ref: RefObject<HTMLDivElement | null>) {
 		};
 	}, [ref]);
 }
+
+const ContainerPortal = ({
+	children,
+	containerId,
+	disabled,
+}: {
+	children: ReactNode;
+	containerId: string | null;
+	disabled?: boolean;
+}) => {
+	const canvas = useCanvas();
+	const [containerElement, setContainerElement] = useState<Element | null>(
+		() => (containerId ? canvas.objectElements.get(containerId) || null : null),
+	);
+	useEffect(() => {
+		return canvas.subscribe('objectElementChange', (objectId, element) => {
+			console.log('objectElementChange', objectId, element);
+			if (objectId === containerId) {
+				setContainerElement(element);
+			}
+		});
+	}, [containerId, canvas]);
+
+	if (disabled) return children;
+	if (containerId && !containerElement) {
+		console.warn('ContainerPortal: container not found', containerId);
+		return null;
+	}
+	if (!containerElement) return children;
+
+	return createPortal(children, containerElement);
+};

@@ -8,19 +8,30 @@ import {
 } from 'react';
 import { useCanvas } from './CanvasProvider.jsx';
 import { SpringValue, to } from '@react-spring/web';
-import { CanvasGestureInfo } from '../logic/Canvas.js';
+import { CanvasGestureInfo, ObjectRegistration } from '../logic/Canvas.js';
 import { useSnapshot } from 'valtio';
 import { closestLivePoint } from '../logic/math.js';
 import { LiveVector2 } from '../types.js';
 
-export function useRegister(objectId: string, metadata?: any) {
+export function useRegister(
+	objectId: string,
+	metadata?: any,
+	registration: ObjectRegistration<any> = {},
+) {
 	const canvas = useCanvas();
 	const metadataRef = useRef(metadata);
 	metadataRef.current = metadata;
+	const registrationRef = useRef(registration);
+	registrationRef.current = registration;
 
 	return useCallback(
 		(element: Element | null) => {
-			return canvas.registerElement(objectId, element, metadataRef.current);
+			return canvas.registerElement({
+				objectId,
+				element,
+				metadata: metadataRef.current,
+				registration: registrationRef.current,
+			});
 		},
 		[canvas, objectId],
 	);
@@ -216,6 +227,16 @@ export function useDragLocked() {
 export function useBoxSelectEnabled() {
 	const canvas = useCanvas();
 	return useSnapshot(canvas.tools).boxSelect;
+}
+
+export function useLiveObjectOrigin(objectId: string | null) {
+	const canvas = useCanvas();
+	return (
+		useSyncExternalStore(
+			(cb) => canvas.bounds.subscribe(`originChange:${objectId}`, cb),
+			() => (objectId ? canvas.getLiveOrigin(objectId) : undefined),
+		) || null
+	);
 }
 
 export function useLiveObjectCenter(objectId: string) {

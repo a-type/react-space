@@ -158,6 +158,12 @@ export class ObjectBounds extends EventSubscriber<{
 		return intersections;
 	};
 
+	getObjectIntersections = (objectId: string, threshold: number) => {
+		const objectBounds = this.getCurrentBounds(objectId);
+		if (!objectBounds) return new Set<string>();
+		return this.getIntersections(objectBounds, threshold);
+	};
+
 	hitTest = (point: Vector2) => {
 		return this.getIntersections(
 			{

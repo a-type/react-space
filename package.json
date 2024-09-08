@@ -26,6 +26,8 @@
 		"@react-spring/web": "^9.7.4",
 		"@use-gesture/react": "^10.3.1",
 		"raf": "^3.4.1",
+		"signia": "^0.1.5",
+		"signia-react": "^0.1.5",
 		"valtio": "^2.0.0"
 	},
 	"devDependencies": {

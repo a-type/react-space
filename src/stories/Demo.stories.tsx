@@ -17,6 +17,7 @@ import {
 	CanvasObjectRoot,
 	useCanvas,
 	ZERO_CENTER,
+	useContainerCandidate,
 } from '../index.js';
 import { useCallback } from 'react';
 import { animated, to } from '@react-spring/web';
@@ -58,6 +59,16 @@ export const KitchenSink: Story = {
 						<CanvasSvgLayer id="wires">
 							<NodeWire from="1" to="2" />
 						</CanvasSvgLayer>
+						<Container
+							id="container"
+							priority={0}
+							initialPosition={{ x: 0, y: 0 }}
+						/>
+						<Container
+							id="container2"
+							priority={1}
+							initialPosition={{ x: 20, y: 20 }}
+						/>
 						<DemoNode id="1" initialPosition={{ x: 10, y: 30 }} />
 						<DemoNode id="2" initialPosition={{ x: 100, y: 100 }} />
 					</CanvasRenderer>
@@ -74,9 +85,17 @@ function DemoNode({
 	id: string;
 	initialPosition: Vector2;
 }) {
+	const [container, setContainer] = React.useState<string | null>(null);
 	const canvasObject = useCanvasObject({
 		initialPosition,
 		objectId: id,
+		containerId: container,
+		onDrop: (event) => {
+			if (event.info.containerId) {
+				setContainer(event.info.containerId);
+				canvasObject.moveTo(event.containerPosition!);
+			}
+		},
 	});
 	const canvas = useCanvas();
 	const zoomToFit = useCallback(() => {
@@ -109,6 +128,37 @@ function NodeWire({ from, to }: { from: string; to: string }) {
 			sourcePosition={fromPos}
 			targetPosition={toPos}
 			className="wire"
+		/>
+	);
+}
+
+function Container({
+	id,
+	priority,
+	initialPosition,
+}: {
+	id: string;
+	priority: number;
+	initialPosition: Vector2;
+}) {
+	const canvasObject = useCanvasObject({
+		objectId: id,
+		initialPosition,
+		canContain: (event) => event.objectId === '1',
+		containerPriority: priority,
+	});
+	const isCandidate = useContainerCandidate(id);
+	return (
+		<CanvasObjectRoot
+			className="container"
+			canvasObject={canvasObject}
+			style={{
+				width: 100,
+				height: 100,
+				border: '1px solid black',
+				background:
+					isCandidate ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)',
+			}}
 		/>
 	);
 }

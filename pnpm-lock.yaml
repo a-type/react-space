@@ -20,6 +20,12 @@ importers:
       raf:
         specifier: ^3.4.1
         version: 3.4.1
+      signia:
+        specifier: ^0.1.5
+        version: 0.1.5
+      signia-react:
+        specifier: ^0.1.5
+        version: 0.1.5(react@18.3.1)
       valtio:
         specifier: ^2.0.0
         version: 2.0.0(@types/react@18.3.5)(react@18.3.1)
@@ -2615,6 +2621,14 @@ packages:
   signal-exit@4.1.0:
     resolution: {integrity: sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw==}
     engines: {node: '>=14'}
+
+  signia-react@0.1.5:
+    resolution: {integrity: sha512-DhHOEJNHIFq0sd4mFpMQx6U0vSb6MGrCS+iVdl1jM2Ts9iNyPc6zaWG/ko+ARS4L2cdHFpNH2l5YqoBNLwMyCw==}
+    peerDependencies:
+      react: ^18
+
+  signia@0.1.5:
+    resolution: {integrity: sha512-ViJpywl7H1W6zRfqbu+86xpSCcuq6tpOen7I+gR8axaiyZP8txRNAoeCsL20UkuqzG/Ybtk0u4C2lawkiwPlnw==}
 
   sisteransi@1.0.5:
     resolution: {integrity: sha512-bLGGlR1QxBcynn2d5YmDX4MGjlZvy2MRBDRNHLJ8VI6l6+9FUiyTFNJ0IveOSP0bcXgVDPRcfGqA0pjaqUpfVg==}
@@ -5777,6 +5791,13 @@ snapshots:
   signal-exit@3.0.7: {}
 
   signal-exit@4.1.0: {}
+
+  signia-react@0.1.5(react@18.3.1):
+    dependencies:
+      react: 18.3.1
+      signia: 0.1.5
+
+  signia@0.1.5: {}
 
   sisteransi@1.0.5: {}
 

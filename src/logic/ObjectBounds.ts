@@ -4,8 +4,6 @@ import { Box, LiveSize, LiveVector2, Size, Vector2 } from '../types.js';
 import { SpatialHash } from './SpatialHash.js';
 
 export class ObjectBounds extends EventSubscriber<{
-	[k: `sizeChange:${string}`]: (bounds: LiveSize) => void;
-	[k: `originChange:${string}`]: (origin: LiveVector2) => void;
 	observedChange: () => void;
 	entryReplaced: (id: string) => void;
 }> {
@@ -188,6 +186,11 @@ export class ObjectBounds extends EventSubscriber<{
 		);
 	};
 
+	/**
+	 * Determines if an object intersects with a box area.
+	 * Threshold is a positive percentage required to pass intersection;
+	 * 0 means any part intersects, 1 means the object must be fully enclosed.
+	 */
 	intersects = (objectId: string, box: Box, threshold: number) => {
 		const objectOrigin = this.getOrigin(objectId);
 		const objectSize = this.getSize(objectId);

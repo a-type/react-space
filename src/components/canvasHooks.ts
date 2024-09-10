@@ -200,38 +200,17 @@ export function useBoxSelectEnabled() {
 
 export function useLiveObjectOrigin(objectId: string | null) {
 	const canvas = useCanvas();
-	return (
-		useSyncExternalStore(
-			(cb) => canvas.bounds.subscribe(`originChange:${objectId}`, cb),
-			() => (objectId ? canvas.getLiveOrigin(objectId) : undefined),
-		) || null
-	);
+	return objectId ? canvas.getLiveOrigin(objectId) : null;
 }
 
 export function useLiveObjectCenter(objectId: string) {
 	const canvas = useCanvas();
-	return useSyncExternalStore(
-		(cb) => {
-			const unsubOrigin = canvas.bounds.subscribe(
-				`originChange:${objectId}`,
-				cb,
-			);
-			const unsubSize = canvas.bounds.subscribe(`sizeChange:${objectId}`, cb);
-			return () => {
-				unsubOrigin();
-				unsubSize();
-			};
-		},
-		() => canvas.getLiveCenter(objectId),
-	);
+	return canvas.getLiveCenter(objectId);
 }
 
 export function useLiveObjectSize(objectId: string) {
 	const canvas = useCanvas();
-	return useSyncExternalStore(
-		(cb) => canvas.bounds.subscribe(`sizeChange:${objectId}`, cb),
-		() => canvas.getLiveSize(objectId),
-	);
+	return canvas.getLiveSize(objectId);
 }
 
 export const ZERO_CENTER = atom('zero center', { x: 0, y: 0 });

@@ -16,6 +16,7 @@ import { ContainerPortal } from './ContainerPortal.js';
 import { animated } from '@react-spring/web';
 import { track } from 'signia-react';
 import { CONTAINER_STATE } from './private.js';
+import { ObjectDragImpostor } from './ObjectDragImpostor.js';
 
 export interface ObjectProps extends HTMLAttributes<HTMLDivElement> {
 	value: CanvasObject;
@@ -46,6 +47,10 @@ export const Object = track(function Object({
 					alt: state.altKey,
 					ctrlOrMeta: state.ctrlKey || state.metaKey,
 					shift: state.shiftKey,
+					distance: canvas.viewport.viewportDeltaToWorld({
+						x: state.offset[0],
+						y: state.offset[1],
+					}),
 					delta: canvas.viewport.viewportDeltaToWorld({
 						x: state.delta[0],
 						y: state.delta[1],
@@ -62,7 +67,7 @@ export const Object = track(function Object({
 		},
 	});
 
-	const style = {
+	const style: CSSProperties = {
 		...baseStyle,
 		...userStyle,
 		...value.style,
@@ -73,15 +78,22 @@ export const Object = track(function Object({
 	return (
 		<ContainerPortal containerId={value.containerId}>
 			<ObjectContext.Provider value={value}>
-				<animated.div
-					ref={finalRef}
-					style={style}
-					{...bind()}
-					{...rest}
-					data-object-over={!!containerState.overId}
-				>
-					{children}
-				</animated.div>
+				<ObjectDragImpostor>
+					{({ hidden }) => (
+						<animated.div
+							ref={finalRef}
+							style={{
+								...style,
+								visibility: hidden ? 'hidden' : 'visible',
+							}}
+							{...bind()}
+							{...rest}
+							data-object-over={!!containerState.overId}
+						>
+							{children}
+						</animated.div>
+					)}
+				</ObjectDragImpostor>
 			</ObjectContext.Provider>
 		</ContainerPortal>
 	);

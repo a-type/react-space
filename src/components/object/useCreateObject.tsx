@@ -99,12 +99,12 @@ export function useCreateObject<Metadata = any>({
 	useObjectGestures(
 		{
 			onDragStart(info) {
-				if (vectorLength(info.delta) > 5) {
+				if (vectorLength(info.distance) > 5) {
 					startDragging();
 				}
 			},
 			onDrag(info) {
-				if (vectorLength(info.delta) > 5) {
+				if (vectorLength(info.distance) > 5) {
 					startDragging();
 				}
 				onDrag?.(info);

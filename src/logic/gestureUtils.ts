@@ -12,6 +12,7 @@ export function gestureStateToInput(state: GestureState): CanvasGestureInput {
 		ctrlOrMeta: state.ctrlKey || state.metaKey,
 		intentional: state.intentional,
 		delta: { x: state.delta[0], y: state.delta[1] },
+		distance: { x: state.offset[0], y: state.offset[1] },
 	};
 }
 
@@ -24,6 +25,8 @@ export function applyGestureState(
 	input.shift = state.shiftKey;
 	input.delta.x = state.delta[0];
 	input.delta.y = state.delta[1];
+	input.distance.x = state.offset[0];
+	input.distance.y = state.offset[1];
 	input.screenPosition.x = state.xy[0];
 	input.screenPosition.y = state.xy[1];
 }

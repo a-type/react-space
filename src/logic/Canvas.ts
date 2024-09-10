@@ -20,6 +20,7 @@ export interface CanvasGestureInfo {
 	ctrlOrMeta: boolean;
 	intentional: boolean;
 	delta: Vector2;
+	distance: Vector2;
 	worldPosition: Vector2;
 	targetId?: string;
 	container?: {
@@ -60,14 +61,18 @@ export type CanvasEvents = {
 	canvasDrag: (info: CanvasGestureInfo) => void;
 	canvasDragEnd: (info: CanvasGestureInfo) => void;
 	resize: (size: RectLimits) => void;
-	containerCandidateChange: (candidate: string | null) => void;
 	objectElementChange: (objectId: string, element: Element | null) => void;
 	[k: `containerRegistered:${string}`]: (container: Container | null) => void;
+	bound: () => void;
 };
 
 export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 	readonly viewport: Viewport;
 	readonly limits: RectLimits;
+	private _element: HTMLDivElement | null = null;
+	get element() {
+		return this._element;
+	}
 
 	readonly bounds = new ObjectBounds();
 	readonly selections = new Selections();
@@ -116,6 +121,11 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 			y: (this.limits.max.y + this.limits.min.y) / 2,
 		};
 	}
+
+	bind = (element: HTMLDivElement) => {
+		this._element = element;
+		this.emit('bound');
+	};
 
 	snapPosition = (position: Vector2) => ({
 		x: snap(position.x, this._positionSnapIncrement),
@@ -175,9 +185,26 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 		const gestureInfo = this.transformGesture(info);
 		const currentBounds = this.bounds.getCurrentBounds(info.targetId);
 		if (currentBounds) {
+			// FIXME: doesn't really work -- when an object is already inside
+			// a container, its reported world position from this gesture
+			// is wrong (since it was computed from container-relative position)
 			this.updateContainer(info.targetId, currentBounds, gestureInfo);
 		}
 		this.emit('objectDrag', gestureInfo);
+	};
+	onObjectDragEnd = (info: CanvasGestureInput) => {
+		if (!info.targetId) return;
+
+		const gestureInfo = this.transformGesture(info, true);
+		if (this.gestureState.containerCandidate) {
+			// FIXME: kinda messy.
+			const currentBounds = this.bounds.getCurrentBounds(info.targetId);
+			if (currentBounds) {
+				this.updateContainer(info.targetId, currentBounds, gestureInfo);
+			}
+			this.gestureState.containerCandidate.setCandidateState(null);
+		}
+		this.emit('objectDragEnd', gestureInfo);
 	};
 
 	private updateContainer = (
@@ -187,7 +214,7 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 	) => {
 		if (objectBounds) {
 			const metadata = this.objectMetadata.get(objectId);
-			const collisions = this.bounds.getIntersections(objectBounds, 0);
+			const collisions = this.bounds.getIntersections(objectBounds, 0.3);
 			let candidatePriority = -1;
 			let winningContainer: Container | null = null;
 			let winningContainerBounds: Box | null = null;
@@ -230,22 +257,6 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 				};
 			}
 		}
-	};
-
-	onObjectDragEnd = (info: CanvasGestureInput) => {
-		if (!info.targetId) return;
-
-		const gestureInfo = this.transformGesture(info, true);
-		if (this.gestureState.containerCandidate) {
-			// FIXME: kinda messy.
-			const currentBounds = this.bounds.getCurrentBounds(info.targetId);
-			if (currentBounds) {
-				this.updateContainer(info.targetId, currentBounds, gestureInfo);
-			}
-			this.gestureState.containerCandidate.setCandidateState(null);
-		}
-		this.emit('objectDragEnd', gestureInfo);
-		this.emit('containerCandidateChange', null);
 	};
 
 	/**

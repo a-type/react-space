@@ -32,7 +32,7 @@ export const ObjectHandle = track(function ObjectHandle({
 	...rest
 }: ObjectHandleProps) {
 	const obj = useObject();
-	const bindDragHandle = useDragHandle(disabled);
+	const handleRef = useDragHandle(disabled);
 
 	/**
 	 * This handler prevents click events from firing within the draggable handle
@@ -63,7 +63,7 @@ export const ObjectHandle = track(function ObjectHandle({
 	return (
 		<div
 			style={style}
-			{...bindDragHandle()}
+			ref={handleRef}
 			onClickCapture={onClickCapture}
 			{...rest}
 		/>
@@ -88,6 +88,7 @@ export const disableDragProps = {
 };
 
 function useDragHandle(disabled = false) {
+	const ref = useRef<HTMLDivElement>(null);
 	const canvas = useCanvas();
 	const object = useObject();
 	const dragLocked = useDragLocked();
@@ -96,7 +97,7 @@ function useDragHandle(disabled = false) {
 	const gestureInputRef = useGestureInput(object.id);
 	const autoPan = useAutoPan(displace, gestureInputRef);
 
-	return useGesture(
+	useGesture(
 		{
 			onDragStart: (state) => {
 				if (isUnacceptableGesture(state.event)) {
@@ -168,10 +169,16 @@ function useDragHandle(disabled = false) {
 		{
 			drag: {
 				preventDefault: true,
+				eventOptions: {
+					passive: false,
+				},
 			},
 			enabled: !dragLocked && !disabled,
+			target: ref,
 		},
 	);
+
+	return ref;
 }
 
 function useDisplacement() {
@@ -192,6 +199,7 @@ function useGestureInput(id: string) {
 		intentional: false,
 		screenPosition: { x: 0, y: 0 },
 		delta: { x: 0, y: 0 },
+		distance: { x: 0, y: 0 },
 		targetId: id,
 	});
 }

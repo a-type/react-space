@@ -6,6 +6,7 @@ import { useViewport } from './ViewportRoot.jsx';
 import { ViewportEventOrigin } from '../logic/Viewport.js';
 import { CSSProperties, ReactNode, useEffect, useRef, useState } from 'react';
 import { useCanvas } from './CanvasProvider.jsx';
+import { useMergedRef } from '../hooks.js';
 
 const VIEWPORT_ORIGIN_SPRINGS = {
 	control: SPRINGS.QUICK,
@@ -94,10 +95,11 @@ export const CanvasRenderer = ({
 	}, [viewport, panSpring, zoomSpring, onZoomChange]);
 
 	const canvas = useCanvas();
+	const finalRef = useMergedRef<HTMLDivElement>(ref, canvas.bind);
 
 	return (
 		<animated.div
-			ref={ref}
+			ref={finalRef}
 			style={{
 				...baseStyle,
 				transform: to([centerX, centerY, zoom], (cx, cy, zoomv) => {

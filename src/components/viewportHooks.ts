@@ -215,7 +215,7 @@ export function useViewportGestureControls(
 					);
 					// this gesture was claimed, but it's now over.
 					// we don't take action but we do reset the claim status
-					canvas.gestureState.claimedBy = null;
+					canvas.resetGestureState();
 					return;
 				} else {
 					console.debug(`drag complete, no claims. processing on canvas.`);

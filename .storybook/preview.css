@@ -12,7 +12,7 @@
 	background-color: #f0f0f0;
 }
 
-.node {
+.handle {
 	background-color: #088776;
 	border-radius: 50px;
 	width: 100px;
@@ -20,15 +20,18 @@
 	color: white;
 }
 
-.handle {
-	background-color: white;
-	width: 40px;
-	height: 40px;
-	border-radius: 50%;
-}
-
 .wire {
 	stroke: #ecfeff;
 	stroke-width: 1;
 	z-index: 1;
+}
+
+.container {
+	width: 100px;
+	height: 100px;
+	border: 1px solid black;
+	overflow: hidden;
+}
+.container[data-object-over='true'] {
+	border-color: green;
 }

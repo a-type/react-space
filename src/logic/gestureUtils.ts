@@ -19,5 +19,11 @@ export function applyGestureState(
 	input: CanvasGestureInput,
 	state: GestureState,
 ) {
-	Object.assign(input, gestureStateToInput(state));
+	input.alt = state.altKey;
+	input.ctrlOrMeta = state.ctrlKey || state.metaKey;
+	input.shift = state.shiftKey;
+	input.delta.x = state.delta[0];
+	input.delta.y = state.delta[1];
+	input.screenPosition.x = state.xy[0];
+	input.screenPosition.y = state.xy[1];
 }

@@ -1,5 +1,6 @@
 import { to } from '@react-spring/web';
 import { LiveSize, LiveVector2, Vector2 } from '../types.js';
+import { computed } from 'signia';
 
 /**
  * Constrains a number to be between a min and max value
@@ -148,28 +149,7 @@ export function compareWithTolerance(
 	return delta < tolerance;
 }
 
-export function roundTenths(percentage: number) {
-	return Math.round(percentage * 10) / 10;
-}
-
-export function addToSpringVector(
-	vec: LiveVector2,
-	add: Vector2 | LiveVector2,
-) {
-	if (isVector2(add)) {
-		return {
-			x: to([vec.x], (v) => v + add.x),
-			y: to([vec.y], (v) => v + add.y),
-		};
-	}
-
-	return {
-		x: to([vec.x, add.x], (v1, v2) => v1 + v2),
-		y: to([vec.y, add.y], (v1, v2) => v1 + v2),
-	};
-}
-
-function isVector2(obj: any): obj is Vector2 {
+export function isVector2(obj: any): obj is Vector2 {
 	return obj.x !== undefined && obj.y !== undefined;
 }
 
@@ -179,56 +159,48 @@ export function closestLivePoint(
 	targetCenter: LiveVector2,
 	shortenBy: number = 0,
 ) {
-	const point = to(
-		[
-			sourceCenter.x,
-			sourceCenter.y,
-			sourceBounds.width,
-			sourceBounds.height,
-			targetCenter.x,
-			targetCenter.y,
-		],
-		(sourceX, sourceY, sourceWidth, sourceHeight, targetX, targetY) => {
-			const dx = targetX - sourceX;
-			const dy = targetY - sourceY;
-			const length = Math.sqrt(dx * dx + dy * dy);
-			if (length === 0) {
-				return { x: sourceX, y: sourceY };
-			}
-			const normalizedX = dx / length;
-			const normalizedY = dy / length;
-			const longestBound = Math.max(sourceWidth / 2, sourceHeight / 2);
-			const projectedX = normalizedX * longestBound;
-			const projectedY = normalizedY * longestBound;
+	return computed('closestLivePoint', () => {
+		const dx = targetCenter.value.x - sourceCenter.value.x;
+		const dy = targetCenter.value.y - sourceCenter.value.y;
+		const length = Math.sqrt(dx * dx + dy * dy);
+		if (length === 0) {
+			return { x: sourceCenter.value.x, y: sourceCenter.value.y };
+		}
+		const normalizedX = dx / length;
+		const normalizedY = dy / length;
+		const longestBound = Math.max(
+			sourceBounds.value.width / 2,
+			sourceBounds.value.height / 2,
+		);
+		const projectedX = normalizedX * longestBound;
+		const projectedY = normalizedY * longestBound;
 
-			const shouldCapX = Math.abs(projectedX) > sourceWidth / 2;
-			const shouldCapY = Math.abs(projectedY) > sourceHeight / 2;
-			let cappedX =
-				shouldCapX ? (Math.sign(projectedX) * sourceWidth) / 2 : projectedX;
-			let cappedY =
-				shouldCapY ? (Math.sign(projectedY) * sourceHeight) / 2 : projectedY;
+		const shouldCapX = Math.abs(projectedX) > sourceBounds.value.width / 2;
+		const shouldCapY = Math.abs(projectedY) > sourceBounds.value.height / 2;
+		let cappedX =
+			shouldCapX ?
+				(Math.sign(projectedX) * sourceBounds.value.width) / 2
+			:	projectedX;
+		let cappedY =
+			shouldCapY ?
+				(Math.sign(projectedY) * sourceBounds.value.height) / 2
+			:	projectedY;
 
-			// steer toward center of the met side of the boundary and adjust
-			// for shorten size
-			if (shouldCapY) {
-				cappedX = cappedX * 0.5;
-				cappedY -= shortenBy * Math.sign(projectedY);
-			} else if (shouldCapX) {
-				cappedY = cappedY * 0.5;
-				cappedX -= shortenBy * Math.sign(projectedX);
-			}
+		// steer toward center of the met side of the boundary and adjust
+		// for shorten size
+		if (shouldCapY) {
+			cappedX = cappedX * 0.5;
+			cappedY -= shortenBy * Math.sign(projectedY);
+		} else if (shouldCapX) {
+			cappedY = cappedY * 0.5;
+			cappedX -= shortenBy * Math.sign(projectedX);
+		}
 
-			return {
-				x: sourceX + cappedX,
-				y: sourceY + cappedY,
-			};
-		},
-	);
-
-	return {
-		x: point.to((p) => p.x),
-		y: point.to((p) => p.y),
-	};
+		return {
+			x: sourceCenter.value.x + cappedX,
+			y: sourceCenter.value.y + cappedY,
+		};
+	});
 }
 
 export interface Bezier {
@@ -332,7 +304,7 @@ export function distanceToBezier(curve: Bezier, point: Vector2) {
 
 export function snapshotLiveVector(vec: LiveVector2) {
 	return {
-		x: vec.x.get(),
-		y: vec.y.get(),
+		x: vec.value.x,
+		y: vec.value.y,
 	};
 }

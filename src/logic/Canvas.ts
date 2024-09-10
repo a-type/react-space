@@ -1,10 +1,11 @@
 import { EventSubscriber } from '@a-type/utils';
 import { clampVector, snap } from './math.js';
-import { Bounds, ObjectBounds } from './ObjectBounds.js';
+import { ObjectBounds } from './ObjectBounds.js';
 import { Selections } from './Selections.js';
 import { Box, RectLimits, Vector2 } from '../types.js';
 import { Viewport, ViewportConfig, ViewportEventOrigin } from './Viewport.js';
 import { proxy } from 'valtio';
+import { Container } from './Container.js';
 
 export interface CanvasOptions {
 	/** Snaps items to a world-unit grid after dropping them - defaults to 1. */
@@ -21,7 +22,10 @@ export interface CanvasGestureInfo {
 	delta: Vector2;
 	worldPosition: Vector2;
 	targetId?: string;
-	containerId?: string;
+	container?: {
+		id: string;
+		relativePosition: Vector2;
+	};
 }
 
 export interface ObjectContainmentEvent<Metadata> {
@@ -58,6 +62,7 @@ export type CanvasEvents = {
 	resize: (size: RectLimits) => void;
 	containerCandidateChange: (candidate: string | null) => void;
 	objectElementChange: (objectId: string, element: Element | null) => void;
+	[k: `containerRegistered:${string}`]: (container: Container | null) => void;
 };
 
 export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
@@ -69,10 +74,7 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 
 	readonly objectElements = new Map<string, Element>();
 	readonly objectMetadata = new Map<string, Metadata>();
-	readonly objectRegistrations = new Map<
-		string,
-		ObjectRegistration<Metadata>
-	>();
+	readonly containers = new Map<string, Container>();
 
 	readonly tools = proxy({
 		dragLocked: false,
@@ -81,11 +83,10 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 
 	readonly gestureState = {
 		claimedBy: null as string | null,
-		containerCandidate: null as string | null,
+		containerCandidate: null as Container | null,
 	};
 
 	private _positionSnapIncrement = 1;
-	private _containersEnabled = 0;
 
 	constructor(options?: CanvasOptions) {
 		super();
@@ -144,7 +145,7 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 		});
 	};
 
-	private resetGestureState = () => {
+	resetGestureState = () => {
 		this.gestureState.claimedBy = null;
 		this.gestureState.containerCandidate = null;
 	};
@@ -163,7 +164,6 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 
 	onCanvasDragEnd = (info: CanvasGestureInput) => {
 		this.emit('canvasDragEnd', this.transformGesture(info));
-		this.resetGestureState();
 	};
 
 	onObjectDragStart = (info: CanvasGestureInput) => {
@@ -185,14 +185,15 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 		objectBounds: Box,
 		info: CanvasGestureInfo,
 	) => {
-		if (objectBounds && this._containersEnabled > 0) {
+		if (objectBounds) {
 			const metadata = this.objectMetadata.get(objectId);
 			const collisions = this.bounds.getIntersections(objectBounds, 0);
 			let candidatePriority = -1;
-			this.gestureState.containerCandidate = null;
+			let winningContainer: Container | null = null;
+			let winningContainerBounds: Box | null = null;
 			for (const collision of collisions) {
-				const registration = this.objectRegistrations.get(collision);
-				if (!registration?.canContain) continue;
+				const container = this.containers.get(collision);
+				if (!container) continue;
 				const containerBounds = this.bounds.getCurrentBounds(collision);
 				if (!containerBounds) continue;
 				const containmentEvent: ObjectContainmentEvent<Metadata> = {
@@ -203,53 +204,59 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 					gestureInfo: info,
 				};
 				if (
-					registration.canContain(containmentEvent) &&
-					(registration.containerPriority || 0) > candidatePriority
+					container.accepts(containmentEvent) &&
+					(container.priority || 0) > candidatePriority
 				) {
-					this.gestureState.containerCandidate = collision;
-					candidatePriority = registration.containerPriority || 0;
+					winningContainer = container;
+					winningContainerBounds = containerBounds;
+					candidatePriority = container.priority || 0;
 				}
 			}
-			if (this.gestureState.containerCandidate) {
-				info.containerId = this.gestureState.containerCandidate;
+			if (winningContainer !== this.gestureState.containerCandidate) {
+				this.gestureState.containerCandidate?.setCandidateState(null);
+				winningContainer?.setCandidateState(objectId);
+				this.gestureState.containerCandidate = winningContainer;
 			}
-			this.emit(
-				'containerCandidateChange',
-				this.gestureState.containerCandidate,
-			);
+			if (winningContainer) {
+				info.container = {
+					id: winningContainer.id,
+					relativePosition:
+						winningContainerBounds ?
+							{
+								x: objectBounds.x - winningContainerBounds.x,
+								y: objectBounds.y - winningContainerBounds.y,
+							}
+						:	{ x: 0, y: 0 },
+				};
+			}
 		}
 	};
 
 	onObjectDragEnd = (info: CanvasGestureInput) => {
+		if (!info.targetId) return;
+
 		const gestureInfo = this.transformGesture(info, true);
 		if (this.gestureState.containerCandidate) {
-			gestureInfo.containerId = this.gestureState.containerCandidate;
+			// FIXME: kinda messy.
+			const currentBounds = this.bounds.getCurrentBounds(info.targetId);
+			if (currentBounds) {
+				this.updateContainer(info.targetId, currentBounds, gestureInfo);
+			}
+			this.gestureState.containerCandidate.setCandidateState(null);
 		}
 		this.emit('objectDragEnd', gestureInfo);
 		this.emit('containerCandidateChange', null);
-		this.resetGestureState();
 	};
 
 	/**
 	 * Gets the instantaneous position of an object.
 	 */
 	getPosition = (objectId: string): Vector2 | null => {
-		const pos = this.getLiveOrigin(objectId);
-		if (!pos) return null;
-		return { x: pos.x.get(), y: pos.y.get() };
+		return this.getLiveOrigin(objectId)?.value ?? null;
 	};
 
 	getCenter = (objectId: string): Vector2 | null => {
-		const pos = this.getLiveOrigin(objectId);
-		if (!pos) return null;
-		const bounds = this.bounds.getSize(objectId);
-		if (!bounds) {
-			return { x: pos.x.get(), y: pos.y.get() };
-		}
-		return {
-			x: pos.x.get() + bounds.width.get() / 2,
-			y: pos.y.get() + bounds.height.get() / 2,
-		};
+		return this.getLiveCenter(objectId)?.value ?? null;
 	};
 
 	getLiveOrigin = (objectId: string) => this.bounds.getOrigin(objectId);
@@ -269,26 +276,19 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 		objectId,
 		element,
 		metadata,
-		registration,
 	}: {
 		objectId: string;
 		element: Element | null;
 		metadata?: Metadata;
-		registration: ObjectRegistration<Metadata>;
 	}) => {
 		if (element) {
 			this.objectElements.set(objectId, element);
-			this.bounds.observe(objectId, element);
-			this.objectRegistrations.set(objectId, registration);
-			if (registration.canContain) {
-				this._containersEnabled++;
-			}
+			this.bounds.observeElement(objectId, element);
 			if (metadata) {
 				this.objectMetadata.set(objectId, metadata);
 			}
 		} else {
 			this.objectMetadata.delete(objectId);
-			this.objectRegistrations.delete(objectId);
 			const el = this.objectElements.get(objectId);
 			if (el) {
 				this.bounds.unobserve(el);
@@ -296,6 +296,21 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 			}
 		}
 		this.emit('objectElementChange', objectId, element);
+	};
+
+	registerContainer = ({
+		id,
+		container,
+	}: {
+		id: string;
+		container: Container | null;
+	}) => {
+		if (container) {
+			this.containers.set(id, container);
+		} else {
+			this.containers.delete(id);
+		}
+		this.emit(`containerRegistered:${id}`, container);
 	};
 
 	zoomToFitAll = (

@@ -7,22 +7,16 @@ import {
 	useSyncExternalStore,
 } from 'react';
 import { useCanvas } from './CanvasProvider.jsx';
-import { SpringValue, to } from '@react-spring/web';
-import { CanvasGestureInfo, ObjectRegistration } from '../logic/Canvas.js';
+import { CanvasGestureInfo } from '../logic/Canvas.js';
 import { useSnapshot } from 'valtio';
 import { closestLivePoint } from '../logic/math.js';
 import { LiveVector2 } from '../types.js';
+import { atom } from 'signia';
 
-export function useRegister(
-	objectId: string,
-	metadata?: any,
-	registration: ObjectRegistration<any> = {},
-) {
+export function useRegister(objectId: string, metadata?: any) {
 	const canvas = useCanvas();
 	const metadataRef = useRef(metadata);
 	metadataRef.current = metadata;
-	const registrationRef = useRef(registration);
-	registrationRef.current = registration;
 
 	return useCallback(
 		(element: Element | null) => {
@@ -30,7 +24,6 @@ export function useRegister(
 				objectId,
 				element,
 				metadata: metadataRef.current,
-				registration: registrationRef.current,
 			});
 		},
 		[canvas, objectId],
@@ -38,45 +31,18 @@ export function useRegister(
 }
 
 export function useCenter(objectId: string) {
-	const origin = useOrigin(objectId);
-	const size = useSize(objectId);
-
-	if (!size || !origin) return { x: 0, y: 0 };
-
-	return {
-		x: to([size.width, origin.x], (width, x) => x + width / 2),
-		y: to([size.height, origin.y], (height, y) => y + height / 2),
-	};
+	const canvas = useCanvas();
+	return canvas.bounds.getCenter(objectId);
 }
 
 export function useOrigin(objectId: string) {
 	const canvas = useCanvas();
-	const [origin, setOrigin] = useState(() => canvas.bounds.getOrigin(objectId));
-	useEffect(() => {
-		setOrigin(canvas.bounds.getOrigin(objectId));
-		return canvas.bounds.subscribe(`originChange:${objectId}`, (origin) => {
-			setOrigin(origin);
-		});
-	}, [canvas.bounds, objectId]);
-
-	if (!origin) return { x: 0, y: 0 };
-
-	return origin;
+	return canvas.bounds.getOrigin(objectId);
 }
 
 export function useSize(objectId: string) {
 	const canvas = useCanvas();
-	const [size, setSize] = useState(() => canvas.bounds.getSize(objectId));
-	useEffect(() => {
-		setSize(canvas.bounds.getSize(objectId));
-		return canvas.bounds.subscribe(`sizeChange:${objectId}`, (size) => {
-			setSize(size);
-		});
-	}, [canvas.bounds, objectId]);
-
-	if (!size) return { width: 0, height: 0 };
-
-	return size;
+	return canvas.bounds.getSize(objectId);
 }
 
 export function useBoundsObjectIds() {
@@ -129,7 +95,7 @@ export function useObjectGestures(
 		onDrag?: (info: CanvasGestureInfo) => void;
 		onDragEnd?: (info: CanvasGestureInfo) => void;
 	},
-	objectId?: string,
+	objectId: string,
 ) {
 	const canvas = useCanvas();
 	const handlersRef = useRef(handlers);
@@ -138,17 +104,20 @@ export function useObjectGestures(
 	useEffect(() => {
 		const unsubs = [
 			canvas.subscribe('objectDragStart', (info) => {
-				if (!objectId || info.targetId === objectId) {
+				const selected = canvas.selections.selectedIds.has(objectId);
+				if (selected || info.targetId === objectId) {
 					handlersRef.current.onDragStart?.(info);
 				}
 			}),
 			canvas.subscribe('objectDrag', (info) => {
-				if (!objectId || info.targetId === objectId) {
+				const selected = canvas.selections.selectedIds.has(objectId);
+				if (selected || info.targetId === objectId) {
 					handlersRef.current.onDrag?.(info);
 				}
 			}),
 			canvas.subscribe('objectDragEnd', (info) => {
-				if (!objectId || info.targetId === objectId) {
+				const selected = canvas.selections.selectedIds.has(objectId);
+				if (selected || info.targetId === objectId) {
 					handlersRef.current.onDragEnd?.(info);
 				}
 			}),
@@ -265,11 +234,11 @@ export function useLiveObjectSize(objectId: string) {
 	);
 }
 
-export const ZERO_CENTER = { x: new SpringValue(0), y: new SpringValue(0) };
-export const ZERO_BOUNDS = {
-	width: new SpringValue(0),
-	height: new SpringValue(0),
-};
+export const ZERO_CENTER = atom('zero center', { x: 0, y: 0 });
+export const ZERO_BOUNDS = atom('zero bounds', {
+	width: 0,
+	height: 0,
+});
 /**
  * Provides the closest boundary position to a given point of an object.
  * Useful for connecting wires.

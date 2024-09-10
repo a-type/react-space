@@ -1,94 +1,84 @@
 import { EventSubscriber } from '@a-type/utils';
-import { SpringValue, to } from '@react-spring/web';
-import { Box, LiveVector2, Vector2 } from '../types.js';
+import { Atom, atom, Computed, computed, react } from 'signia';
+import { Box, LiveSize, LiveVector2, Size, Vector2 } from '../types.js';
 import { SpatialHash } from './SpatialHash.js';
 
-export interface Bounds {
-	width: SpringValue<number>;
-	height: SpringValue<number>;
-}
-
 export class ObjectBounds extends EventSubscriber<{
-	[k: `sizeChange:${string}`]: (bounds: Bounds) => void;
+	[k: `sizeChange:${string}`]: (bounds: LiveSize) => void;
 	[k: `originChange:${string}`]: (origin: LiveVector2) => void;
 	observedChange: () => void;
+	entryReplaced: (id: string) => void;
 }> {
-	private origins: Map<string, LiveVector2> = new Map();
-	private sizes: Map<string, Bounds> = new Map();
-	private centers: Map<string, LiveVector2> = new Map();
+	private entries: Map<string, ObjectBoundsEntry> = new Map();
+	private objectReactionUnsubscribes: Map<string, () => void> = new Map();
 	private sizeObserver;
 	private spatialHash = new SpatialHash<string>(100);
 	private spatialHashRecomputeTimers = new Map<string, any>();
+	private deregistered = new Set<string>();
 
 	constructor() {
 		super();
-		this.sizeObserver = new ResizeObserver(this.handleChanges);
+		this.sizeObserver = new ResizeObserver(this.handleDOMChanges);
 	}
 
-	updateHash = (objectId: string) => {
-		const origin = this.getOrigin(objectId);
-		const size = this.getSize(objectId);
+	getSize = (objectId: string) => {
+		return this.entries.get(objectId)?.size ?? null;
+	};
 
-		if (!origin || !size) {
-			console.log('no origin or size', objectId, {
-				origin,
-				size,
-			});
-			return;
-		}
+	getOrigin = (objectId: string) => {
+		return this.entries.get(objectId)?.origin ?? null;
+	};
 
-		const x = origin.x.get();
-		const y = origin.y.get();
-		const width = size.width.get();
-		const height = size.height.get();
+	getCenter = (objectId: string) => {
+		return this.entries.get(objectId)?.center ?? null;
+	};
+
+	getEntry = (objectId: string) => {
+		return this.entries.get(objectId);
+	};
+
+	get ids() {
+		return Array.from(this.entries.keys());
+	}
+
+	updateHash = (objectId: string, origin: Vector2, size: Size) => {
+		const x = origin.x;
+		const y = origin.y;
+		const width = size.width;
+		const height = size.height;
 
 		this.spatialHash.replace(objectId, { x, y, width, height });
 	};
 
-	private debouncedUpdateHash = (objectId: string) => {
+	private debouncedUpdateHash = (
+		objectId: string,
+		origin: Vector2,
+		size: Size,
+	) => {
 		clearTimeout(this.spatialHashRecomputeTimers.get(objectId));
 		this.spatialHashRecomputeTimers.set(
 			objectId,
 			setTimeout(() => {
-				this.updateHash(objectId);
+				this.updateHash(objectId, origin, size);
 			}, 500),
 		);
 	};
 
-	private updateSize = (
-		objectId: string,
-		changes: Partial<{ width: number; height: number }>,
-	) => {
-		let bounds = this.sizes.get(objectId);
-		if (!bounds) {
-			bounds = { width: new SpringValue(0), height: new SpringValue(0) };
-			this.sizes.set(objectId, bounds);
-			this.recreateCenter(objectId);
-			this.emit('observedChange');
-			this.emit(`sizeChange:${objectId}`, bounds);
-		}
+	observeElement = (objectId: string, element: Element | null) => {
+		const entry = this.register(objectId);
 
-		if (changes.width) {
-			bounds.width.set(changes.width);
-		}
-		if (changes.height) {
-			bounds.height.set(changes.height);
-		}
+		console.log('observing element', objectId, element);
 
-		this.debouncedUpdateHash(objectId);
-	};
-
-	observe = (objectId: string, element: Element | null) => {
 		// supports React <19 refs
 		if (element === null) {
-			this.sizes.delete(objectId);
+			entry.size.set({ width: 0, height: 0 });
 			return;
 		}
 
 		element.setAttribute('data-observed-object-id', objectId);
 		this.sizeObserver.observe(element);
 		// seed initial state
-		this.updateSize(objectId, {
+		entry.size.set({
 			width: element.clientWidth,
 			height: element.clientHeight,
 		});
@@ -98,54 +88,77 @@ export class ObjectBounds extends EventSubscriber<{
 	unobserve = (el: Element) => {
 		const objectId = el.getAttribute('data-observed-object-id');
 		if (objectId) {
-			this.sizes.delete(objectId);
-			this.origins.delete(objectId);
-			this.centers.delete(objectId);
 			this.emit('observedChange');
 			this.sizeObserver.unobserve(el);
 		}
 	};
 
-	registerOrigin = (objectId: string, origin: LiveVector2) => {
-		this.origins.set(objectId, origin);
-		this.recreateCenter(objectId);
-		this.emit(`originChange:${objectId}`, origin);
-		return () => {
-			this.origins.delete(objectId);
-		};
+	register = (objectId: string, initialPosition?: Vector2) => {
+		this.deregistered.delete(objectId);
+
+		let entry = this.entries.get(objectId);
+		if (!entry) {
+			console.log(
+				'initializing new bounds entry for',
+				objectId,
+				'at',
+				initialPosition,
+			);
+			entry = new ObjectBoundsEntry(
+				objectId,
+				atom(`${objectId} origin`, initialPosition || { x: 0, y: 0 }),
+				atom(`${objectId} size`, { width: 0, height: 0 }),
+				this.onEntryChange,
+			);
+			this.entries.set(objectId, entry);
+			this.emit('entryReplaced', objectId);
+		}
+
+		this.updateHash(objectId, entry.origin.value, entry.size.value);
+
+		return entry;
 	};
 
-	getSize = (objectId: string) => {
-		return this.sizes.get(objectId);
+	deregister = (objectId: string) => {
+		console.log('deregistering', objectId, 'soon');
+		this.deregistered.add(objectId);
+		setTimeout(this.cleanupDeregistered, 100);
 	};
 
-	getOrigin = (objectId: string) => {
-		return this.origins.get(objectId);
+	private cleanupDeregistered = () => {
+		for (const objectId of this.deregistered) {
+			const entry = this.entries.get(objectId);
+			if (entry) {
+				entry.cleanup();
+				this.entries.delete(objectId);
+				this.emit('entryReplaced', objectId);
+			}
+			this.objectReactionUnsubscribes.delete(objectId);
+			this.spatialHash.remove(objectId);
+			console.log('deregistered', objectId);
+		}
+		this.deregistered.clear();
 	};
 
-	getCenter = (objectId: string) => {
-		return this.centers.get(objectId);
+	private onEntryChange = (id: string, origin: Vector2, size: Size) => {
+		this.debouncedUpdateHash(id, origin, size);
 	};
 
-	private handleChanges = (entries: ResizeObserverEntry[]) => {
+	private handleDOMChanges = (entries: ResizeObserverEntry[]) => {
 		entries.forEach((entry) => {
 			const objectId = entry.target.getAttribute('data-observed-object-id');
 			if (!objectId) return;
 			const bounds = entry.borderBoxSize[0];
-			const existing = this.sizes.get(objectId);
-			if (existing) {
+			const registration = this.entries.get(objectId);
+			if (registration) {
 				// x/y are not helpful here
-				this.updateSize(objectId, {
+				registration.size.set({
 					width: bounds.inlineSize,
 					height: bounds.blockSize,
 				});
 			}
 		});
 	};
-
-	get ids() {
-		return Array.from(this.sizes.keys());
-	}
 
 	getIntersections = (box: Box, threshold: number) => {
 		const nearby = this.spatialHash.queryByRect(box);
@@ -181,10 +194,10 @@ export class ObjectBounds extends EventSubscriber<{
 
 		if (!objectOrigin || !objectSize) return false;
 
-		const objectX = objectOrigin.x.get();
-		const objectY = objectOrigin.y.get();
-		const objectWidth = objectSize.width.get();
-		const objectHeight = objectSize.height.get();
+		const objectX = objectOrigin.value.x;
+		const objectY = objectOrigin.value.y;
+		const objectWidth = objectSize.value.width;
+		const objectHeight = objectSize.value.height;
 
 		const objectBottomRight = {
 			x: objectX + objectWidth,
@@ -270,12 +283,12 @@ export class ObjectBounds extends EventSubscriber<{
 		};
 
 		if (origin) {
-			bounds.x = origin.x.get();
-			bounds.y = origin.y.get();
+			bounds.x = origin.value.x;
+			bounds.y = origin.value.y;
 		}
 		if (size) {
-			bounds.width = size.width.get();
-			bounds.height = size.height.get();
+			bounds.width = size.value.width;
+			bounds.height = size.value.height;
 		}
 
 		return bounds;
@@ -311,19 +324,25 @@ export class ObjectBounds extends EventSubscriber<{
 
 		return container;
 	};
+}
 
-	private recreateCenter = (objectId: string) => {
-		const origin = this.getOrigin(objectId);
-		const size = this.getSize(objectId);
-
-		if (!origin) return;
-		if (!size) {
-			this.centers.set(objectId, origin);
-			return;
-		}
-		this.centers.set(objectId, {
-			x: to([origin.x, size.width], (x, width) => x + width / 2),
-			y: to([origin.y, size.height], (y, height) => y + height / 2),
+class ObjectBoundsEntry {
+	readonly center: Computed<Vector2>;
+	readonly cleanup: () => void;
+	constructor(
+		readonly id: string,
+		readonly origin: Atom<Vector2>,
+		readonly size: Atom<Size>,
+		onChange: (id: string, origin: Vector2, size: Size) => void,
+	) {
+		this.origin = origin;
+		this.size = size;
+		this.center = computed<Vector2>('center', () => ({
+			x: origin.value.x + size.value.width / 2,
+			y: origin.value.y + size.value.height / 2,
+		}));
+		this.cleanup = react('object bounds change', () => {
+			onChange(this.id, this.origin.value, this.size.value);
 		});
-	};
+	}
 }

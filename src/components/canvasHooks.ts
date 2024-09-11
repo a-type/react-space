@@ -13,26 +13,9 @@ import { closestLivePoint } from '../logic/math.js';
 import { LiveVector2 } from '../types.js';
 import { atom } from 'signia';
 
-export function useRegister(objectId: string, metadata?: any) {
-	const canvas = useCanvas();
-	const metadataRef = useRef(metadata);
-	metadataRef.current = metadata;
-
-	return useCallback(
-		(element: Element | null) => {
-			return canvas.registerElement({
-				objectId,
-				element,
-				metadata: metadataRef.current,
-			});
-		},
-		[canvas, objectId],
-	);
-}
-
 export function useCenter(objectId: string) {
 	const canvas = useCanvas();
-	return canvas.bounds.getCenter(objectId);
+	return canvas.bounds.getEntry(objectId)?.center;
 }
 
 export function useOrigin(objectId: string) {

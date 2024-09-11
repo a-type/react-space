@@ -18,15 +18,13 @@ export interface ContainerConfig {
 }
 
 type ContainerEvents = {
-	elementChange: (element: HTMLElement | null) => void;
+	elementChange: (
+		element: HTMLElement | null,
+		prevElement: HTMLElement | null,
+	) => void;
 };
 
 export class Container extends EventSubscriber<ContainerEvents> {
-	private _element: HTMLElement | null = null;
-	get element() {
-		return this._element;
-	}
-
 	constructor(private config: ContainerConfig) {
 		super();
 	}
@@ -42,11 +40,6 @@ export class Container extends EventSubscriber<ContainerEvents> {
 	get priority() {
 		return this.config.priority ?? 0;
 	}
-
-	ref = (element: HTMLElement | null) => {
-		this._element = element;
-		this.emit('elementChange', element);
-	};
 
 	setCandidateState(overObjectId: string | null) {
 		this.config.onCandidateStateChange?.(overObjectId);

@@ -1,4 +1,4 @@
-import { CSSProperties, useEffect, useState } from 'react';
+import { CSSProperties, useState, useSyncExternalStore } from 'react';
 import { Container, ContainmentEvent } from '../../logic/Container.js';
 import { useObject } from './Object.js';
 import { useCanvas } from '../CanvasProvider.js';
@@ -36,10 +36,13 @@ export function ObjectContainer({
 		});
 	});
 	const canvas = useCanvas();
-	useEffect(
-		() => canvas.registerContainer({ id: defaultedId, container }),
-		[canvas, id, container],
+	const entry = useSyncExternalStore(
+		(cb) =>
+			canvas.containers.subscribe('entryReplaced', (id) => {
+				if (id === container.id) cb();
+			}),
+		() => canvas.containers.register(container.id, container),
 	);
 
-	return <div ref={container.ref} {...rest} />;
+	return <div ref={entry.ref} {...rest} />;
 }

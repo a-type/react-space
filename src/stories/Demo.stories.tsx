@@ -6,6 +6,7 @@ import {
 	CanvasProvider,
 	CanvasRenderer,
 	CanvasWallpaper,
+	DebugLayer,
 	Object,
 	ObjectContainer,
 	ObjectHandle,
@@ -62,6 +63,7 @@ export const KitchenSink: Story = {
 						/>
 						<DemoNode id="1" initialPosition={{ x: 10, y: 30 }} />
 						<DemoNode id="2" initialPosition={{ x: 100, y: 100 }} />
+						<DebugLayer />
 					</CanvasRenderer>
 				</ViewportRoot>
 			</CanvasProvider>

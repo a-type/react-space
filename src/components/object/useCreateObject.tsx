@@ -1,27 +1,21 @@
+import { to, useSpring } from '@react-spring/web';
 import {
 	Ref,
 	useCallback,
 	useEffect,
-	useMemo,
 	useRef,
 	useState,
 	useSyncExternalStore,
 } from 'react';
-import { LiveVector2, Vector2 } from '../../types.js';
-import { useCanvas } from '../CanvasProvider.js';
-import { to, useSpring } from '@react-spring/web';
-import { Atom, react, Signal } from 'signia';
-import { SPRINGS } from '../../constants.js';
-import { useObjectGestures, useRegister } from '../canvasHooks.js';
-import {
-	addVectors,
-	snapshotLiveVector,
-	subtractVectors,
-	vectorLength,
-} from '../../logic/math.js';
-import { CONTAINER_STATE } from './private.js';
+import { Atom, react } from 'signia';
 import { useAtom } from 'signia-react';
+import { SPRINGS } from '../../constants.js';
 import { CanvasGestureInfo } from '../../logic/Canvas.js';
+import { vectorLength } from '../../logic/math.js';
+import { Vector2 } from '../../types.js';
+import { useObjectGestures } from '../canvasHooks.js';
+import { useCanvas } from '../CanvasProvider.js';
+import { CONTAINER_STATE } from './private.js';
 
 export interface CanvasObject {
 	id: string;
@@ -63,7 +57,7 @@ export function useCreateObject<Metadata = any>({
 			canvas.bounds.subscribe('entryReplaced', (objId) => {
 				if (id === objId) cb();
 			}),
-		() => canvas.bounds.register(id, initialPosition),
+		() => canvas.bounds.register(id, metadata, initialPosition),
 	);
 
 	useEffect(() => {
@@ -117,8 +111,6 @@ export function useCreateObject<Metadata = any>({
 		id,
 	);
 
-	const registerRef = useRegister(id, metadata);
-
 	const style = {
 		transform: to(
 			[positionStyle.x, positionStyle.y, pickupSpring.value],
@@ -132,7 +124,7 @@ export function useCreateObject<Metadata = any>({
 
 	return {
 		id,
-		ref: registerRef,
+		ref: entry.ref,
 		style,
 		containerId,
 		isDragging,

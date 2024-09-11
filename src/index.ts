@@ -13,6 +13,7 @@ export * from './components/Cursor.js';
 export * from './components/Minimap.js';
 export * from './components/ViewportRoot.js';
 export * from './components/canvasHooks.js';
+export * from './components/DebugLayer.js';
 export * as math from './logic/math.js';
 export type * from './logic/Canvas.js';
 export type * from './logic/Viewport.js';

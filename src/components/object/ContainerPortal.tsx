@@ -13,13 +13,12 @@ export const ContainerPortal = ({
 }) => {
 	const canvas = useCanvas();
 
-	const container = useSyncExternalStore(
-		(cb) => canvas.subscribe(`containerRegistered:${containerId}`, cb),
-		() => (containerId ? canvas.containers.get(containerId) : null),
-	);
 	const containerElement = useSyncExternalStore(
-		(cb) => container?.subscribe('elementChange', cb) ?? (() => {}),
-		() => container?.element,
+		(cb) =>
+			canvas.containers.subscribe(`elementChanged`, (id) => {
+				if (id === containerId) cb();
+			}),
+		() => (containerId ? canvas.containers.get(containerId)?.element : null),
 	);
 
 	if (disabled) return children;

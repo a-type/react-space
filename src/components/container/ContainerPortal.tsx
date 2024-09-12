@@ -1,6 +1,6 @@
-import { ReactNode, useSyncExternalStore } from 'react';
+import { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { useCanvas } from '../CanvasProvider.js';
+import { useContainerElement } from '../canvas/canvasHooks.js';
 
 export const ContainerPortal = ({
 	children,
@@ -11,15 +11,7 @@ export const ContainerPortal = ({
 	containerId: string | null;
 	disabled?: boolean;
 }) => {
-	const canvas = useCanvas();
-
-	const containerElement = useSyncExternalStore(
-		(cb) =>
-			canvas.containers.subscribe(`elementChanged`, (id) => {
-				if (id === containerId) cb();
-			}),
-		() => (containerId ? canvas.containers.get(containerId)?.element : null),
-	);
+	const containerElement = useContainerElement(containerId);
 
 	if (disabled) return children;
 	if (containerId && !containerElement) {

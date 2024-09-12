@@ -1,11 +1,8 @@
 import { Atom, atom, Computed, computed } from 'signia';
 import { Size, Vector2 } from '../types.js';
-import { BoundsRegistry, BoundsRegistryEntry } from './Registry.js';
+import { BoundsRegistry, BoundsRegistryEntry } from './BoundsRegistry.js';
 
-export class ObjectBounds extends BoundsRegistry<
-	ObjectBoundsEntry,
-	[any, Vector2]
-> {
+export class Objects extends BoundsRegistry<ObjectBoundsEntry, [any, Vector2]> {
 	constructor() {
 		super({
 			init: (objectId: string, metadata: any, initialPosition?: Vector2) =>

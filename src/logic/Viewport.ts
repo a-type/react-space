@@ -7,7 +7,6 @@ import {
 	multiplyVector,
 	subtractVectors,
 } from './math.js';
-import { Canvas } from './Canvas.js';
 
 export interface ViewportConfig {
 	/** Supply a starting zoom value. Default 1 */
@@ -35,8 +34,6 @@ export interface ViewportConfig {
 	 * can be set later using bindElement. Defaults to window.
 	 */
 	boundElement?: HTMLElement;
-
-	canvas: Canvas;
 }
 
 // removes some optional annotations as they are filled by defaults.
@@ -86,11 +83,10 @@ export type ViewportEvents = {
  * when the camera properties change.
  */
 export class Viewport extends EventSubscriber<ViewportEvents> {
-	private canvas: Canvas;
 	private _center: Vector2 = { x: 0, y: 0 };
 	private _zoom = 1;
 	_config: InternalViewportConfig;
-	// these two are initialized in a helper method, bypassing
+	// initialized in a helper method, bypassing
 	// strict initialization checking...
 	private _boundElement: HTMLElement = null as any;
 	private _boundElementSize: Size = { width: 0, height: 0 };
@@ -106,9 +102,8 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 		this.handleBoundElementResize,
 	);
 
-	constructor({ boundElement, canvas, ...config }: ViewportConfig) {
+	constructor({ boundElement, ...config }: ViewportConfig) {
 		super();
-		this.canvas = canvas;
 
 		if (config.defaultCenter) {
 			this._center = config.defaultCenter;
@@ -121,13 +116,7 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 		this._config = {
 			defaultZoom: 1,
 			zoomLimits: { min: 0.25, max: 2 },
-			panLimits:
-				canvas.limits ?
-					{
-						max: multiplyVector(canvas.limits.max, 1.5),
-						min: multiplyVector(canvas.limits.min, 1.5),
-					}
-				:	undefined,
+			panLimitMode: 'center',
 			...config,
 		};
 
@@ -138,8 +127,7 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 	}
 
 	private setBoundElementSize = (size: Size, offset?: Vector2) => {
-		this._boundElementSize.width = size.width;
-		this._boundElementSize.height = size.height;
+		this._boundElementSize = size;
 		if (offset) {
 			this._boundElementOffset = offset;
 		}
@@ -191,7 +179,7 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 	/**
 	 * The zoom value of the camera - higher means things look bigger.
 	 */
-	get zoom() {
+	get zoomValue() {
 		return this._zoom;
 	}
 
@@ -223,8 +211,8 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 	 */
 	get size() {
 		return {
-			width: this._boundElementSize.width / this.zoom,
-			height: this._boundElementSize.height / this.zoom,
+			width: this._boundElementSize.width / this.zoomValue,
+			height: this._boundElementSize.height / this.zoomValue,
 		};
 	}
 
@@ -255,11 +243,18 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 		document.removeEventListener('gesturechange', preventDefault);
 	};
 
+	updateConfig = (config: Partial<ViewportConfig>) => {
+		this._config = {
+			...this._config,
+			...config,
+		};
+	};
+
 	/**
 	 * Transforms a pixel position into world coordinates. Optionally
 	 * you can clamp the coordinate to the canvas bounds, if they exist.
 	 */
-	viewportToWorld = (screenPoint: Vector2, clamp = false) => {
+	viewportToWorld = (screenPoint: Vector2) => {
 		// This was a bit trial-and-error, but:
 		// 1. subtract half of the window size
 		//      Imagine the viewport was centered at 0,0 in world space (the center of the window
@@ -281,18 +276,13 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 		const transformedPoint = {
 			x:
 				(screenPoint.x - this._boundElementOffset.x - this.halfViewportWidth) /
-					this.zoom +
+					this.zoomValue +
 				this.center.x,
 			y:
 				(screenPoint.y - this._boundElementOffset.y - this.halfViewportHeight) /
-					this.zoom +
+					this.zoomValue +
 				this.center.y,
 		};
-
-		if (clamp) {
-			return this.canvas.clampPosition(transformedPoint);
-		}
-
 		return transformedPoint;
 	};
 
@@ -303,11 +293,11 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 	worldToViewport = (worldPoint: Vector2) => {
 		return {
 			x:
-				(worldPoint.x - this.center.x) * this.zoom +
+				(worldPoint.x - this.center.x) * this.zoomValue +
 				this.halfViewportWidth +
 				this._boundElementOffset.x,
 			y:
-				(worldPoint.y - this.center.y) * this.zoom +
+				(worldPoint.y - this.center.y) * this.zoomValue +
 				this.halfViewportHeight +
 				this._boundElementOffset.y,
 		};
@@ -319,8 +309,8 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 	 */
 	viewportDeltaToWorld = (screenDelta: Vector2) => {
 		return {
-			x: screenDelta.x / this.zoom,
-			y: screenDelta.y / this.zoom,
+			x: screenDelta.x / this.zoomValue,
+			y: screenDelta.y / this.zoomValue,
 		};
 	};
 
@@ -330,8 +320,15 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 	 */
 	worldDeltaToViewport = (worldDelta: Vector2) => {
 		return {
-			x: worldDelta.x * this.zoom,
-			y: worldDelta.y * this.zoom,
+			x: worldDelta.x * this.zoomValue,
+			y: worldDelta.y * this.zoomValue,
+		};
+	};
+
+	worldSizeToViewport = (worldSize: Size) => {
+		return {
+			width: worldSize.width * this.zoomValue,
+			height: worldSize.height * this.zoomValue,
 		};
 	};
 
@@ -342,12 +339,21 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 	private clampPanPosition = (panPosition: Vector2) => {
 		if (this.config.panLimits) {
 			if (this.config.panLimitMode === 'viewport') {
-				const worldViewportHalfWidth = this.halfViewportWidth / this.zoom;
-				const worldViewportHalfHeight = this.halfViewportHeight / this.zoom;
-				const worldViewportWidth = this._boundElementSize.width / this.zoom;
-				const worldViewportHeight = this._boundElementSize.height / this.zoom;
-				const canvasRect = this.canvas.boundary;
-				const worldCenter = this.canvas.center;
+				const worldViewportHalfWidth = this.halfViewportWidth / this.zoomValue;
+				const worldViewportHalfHeight =
+					this.halfViewportHeight / this.zoomValue;
+				const worldViewportWidth =
+					this._boundElementSize.width / this.zoomValue;
+				const worldViewportHeight =
+					this._boundElementSize.height / this.zoomValue;
+				const clampSize = {
+					width: this.config.panLimits.max.x - this.config.panLimits.min.x,
+					height: this.config.panLimits.max.y - this.config.panLimits.min.y,
+				};
+				const worldCenter = {
+					x: this.config.panLimits.min.x + clampSize.width / 2,
+					y: this.config.panLimits.min.y + clampSize.height / 2,
+				};
 
 				// there are different rules depending on if the viewport is visually larger
 				// than the canvas, or vice versa. when the viewport is larger than the canvas
@@ -355,15 +361,15 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 				// canvas touches the far edge of the screen.
 				let minX = this.config.panLimits.min.x + worldViewportHalfWidth;
 				let maxX = this.config.panLimits.max.x - worldViewportHalfWidth;
-				if (worldViewportWidth > canvasRect.width) {
-					minX = worldCenter.x - (worldViewportWidth - canvasRect.width) / 2;
-					maxX = worldCenter.x + (worldViewportWidth - canvasRect.width) / 2;
+				if (worldViewportWidth > clampSize.width) {
+					minX = worldCenter.x - (worldViewportWidth - clampSize.width) / 2;
+					maxX = worldCenter.x + (worldViewportWidth - clampSize.width) / 2;
 				}
 				let minY = this.config.panLimits.min.y + worldViewportHalfHeight;
 				let maxY = this.config.panLimits.max.y - worldViewportHalfHeight;
-				if (worldViewportHeight > canvasRect.height) {
-					minY = worldCenter.y - (worldViewportHeight - canvasRect.height) / 2;
-					maxY = worldCenter.y + (worldViewportHeight - canvasRect.height) / 2;
+				if (worldViewportHeight > clampSize.height) {
+					minY = worldCenter.y - (worldViewportHeight - clampSize.height) / 2;
+					maxY = worldCenter.y + (worldViewportHeight - clampSize.height) / 2;
 				}
 				return clampVector(
 					panPosition,
@@ -388,7 +394,7 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 	 * @param zoomValue the new zoom factor
 	 * @param centroid a screen coordinate position which should remain visually stable during the zoom
 	 */
-	doZoom = (
+	zoom = (
 		zoomValue: number,
 		{
 			origin = 'direct',
@@ -419,7 +425,7 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 			const priorFocalScreenPoint = this.worldToViewport(priorFocalWorldPoint);
 			const screenDifference = subtractVectors(priorFocalScreenPoint, centroid);
 			// convert that difference to world units and apply it as a relative pan
-			this.doRelativePan(this.viewportDeltaToWorld(screenDifference), {
+			this.relativePan(this.viewportDeltaToWorld(screenDifference), {
 				origin,
 				gestureComplete,
 			});
@@ -431,11 +437,11 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 			);
 			// apply a pan with the current pan position to recalculate pan
 			// boundaries from the new zoom and enforce them
-			this.doPan(this.center, { origin, gestureComplete });
+			this.pan(this.center, { origin, gestureComplete });
 		}
-		this.emit('zoomChanged', this.zoom, origin);
+		this.emit('zoomChanged', this.zoomValue, origin);
 		if (gestureComplete) {
-			this.emit('zoomSettled', this.zoom, origin);
+			this.emit('zoomSettled', this.zoomValue, origin);
 		}
 	};
 
@@ -443,7 +449,7 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 	 * Adjusts the zoom of the viewport camera relative to the current value. See doZoom
 	 * for details on parameters.
 	 */
-	doRelativeZoom = (
+	relativeZoom = (
 		zoomDelta: number,
 		details: {
 			origin?: ViewportEventOrigin;
@@ -451,7 +457,7 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 			gestureComplete?: boolean;
 		},
 	) => {
-		this.doZoom(this.zoom + zoomDelta, details);
+		this.zoom(this.zoomValue + zoomDelta, details);
 	};
 
 	/**
@@ -462,7 +468,7 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 	 *
 	 * @param {Vector2} worldPosition the position in world coordinates to pan to
 	 */
-	doPan = (
+	pan = (
 		worldPosition: Vector2,
 		{
 			origin = 'direct',
@@ -483,11 +489,11 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 	 *
 	 * See doPan for details on parameters.
 	 */
-	doRelativePan = (
+	relativePan = (
 		worldDelta: Vector2,
 		details?: { origin?: ViewportEventOrigin; gestureComplete?: boolean },
 	) => {
-		this.doPan(addVectors(this.center, worldDelta), details);
+		this.pan(addVectors(this.center, worldDelta), details);
 	};
 
 	/**
@@ -496,13 +502,13 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 	 * are absolute - see .doZoom and .doPan for more details on behavior
 	 * and parameters.
 	 */
-	doMove = (
+	move = (
 		worldPosition: Vector2,
 		zoomValue: number,
 		info: { origin?: ViewportEventOrigin; gestureComplete?: boolean } = {},
 	) => {
-		this.doPan(worldPosition, info);
-		this.doZoom(zoomValue, info);
+		this.pan(worldPosition, info);
+		this.zoom(zoomValue, info);
 	};
 
 	/**
@@ -514,7 +520,7 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 		{
 			origin = 'control',
 			margin = 10,
-		}: { origin?: ViewportEventOrigin; margin?: number },
+		}: { origin?: ViewportEventOrigin; margin?: number } = {},
 	) => {
 		const width = bounds.width;
 		const height = bounds.height;
@@ -526,6 +532,6 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 			x: bounds.x + width / 2,
 			y: bounds.y + height / 2,
 		};
-		this.doMove(center, zoom, { origin });
+		this.move(center, zoom, { origin });
 	};
 }

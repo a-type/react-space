@@ -1,8 +1,8 @@
-import { CSSProperties, ReactNode, useMemo, useRef } from 'react';
+import { CSSProperties, ReactNode, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useCanvasRect } from './canvasHooks.js';
-import { useCanvas } from './CanvasProvider.jsx';
-import { useRerasterize } from '../logic/rerasterizeSignal.js';
+import { react } from 'signia';
+import { useRerasterize } from '../../logic/rerasterizeSignal.js';
+import { useCanvas } from './CanvasProvider.js';
 
 export interface CanvasSvgLayerProps {
 	children: ReactNode;
@@ -13,6 +13,8 @@ export interface CanvasSvgLayerProps {
 const baseStyle: CSSProperties = {
 	position: 'absolute',
 	pointerEvents: 'none',
+	width: '100%',
+	height: '100%',
 };
 
 export function CanvasSvgLayer({
@@ -21,20 +23,23 @@ export function CanvasSvgLayer({
 	id,
 }: CanvasSvgLayerProps) {
 	const canvas = useCanvas();
-	const canvasRect = useCanvasRect();
-
-	const style = useMemo(() => {
-		return {
-			...baseStyle,
-			width: canvas.boundary.width,
-			height: canvas.boundary.height,
-			left: canvas.boundary.x,
-			top: canvas.boundary.y,
-		};
-	}, [canvas]);
 
 	const ref = useRef<SVGSVGElement>(null);
 	useRerasterize(ref);
+
+	useEffect(() => {
+		return react(`canvas svg layer [${id}] viewbox`, () => {
+			const { min, max } = canvas.limits.value;
+			if (ref.current) {
+				ref.current.setAttribute(
+					'viewBox',
+					`${min.x} ${min.y} ${max.x - min.x} ${max.y - min.y}`,
+				);
+			}
+		});
+	}, [canvas, ref]);
+
+	const { min, max } = canvas.limits.value;
 
 	return (
 		<>
@@ -47,12 +52,10 @@ export function CanvasSvgLayer({
 			</style>
 			<svg
 				className={className}
-				style={style}
+				style={baseStyle}
 				id={id}
-				viewBox={`-${canvasRect.width / 2} -${canvasRect.height / 2} ${
-					canvasRect.width
-				} ${canvasRect.height}`}
 				ref={ref}
+				viewBox={`${min.x} ${min.y} ${max.x - min.x} ${max.y - min.y}`}
 			>
 				{children}
 			</svg>

@@ -10,13 +10,14 @@ import { CanvasObject } from './useCreateObject.js';
 import { useRerasterize } from '../../logic/rerasterizeSignal.js';
 import { useMergedRef } from '../../hooks.js';
 import { useGesture } from '@use-gesture/react';
-import { useCanvas } from '../CanvasProvider.js';
+import { useCanvas } from '../canvas/CanvasProvider.js';
 import { CanvasGestureInfo } from '../../logic/Canvas.js';
-import { ContainerPortal } from './ContainerPortal.js';
+import { ContainerPortal } from '../container/ContainerPortal.js';
 import { animated } from '@react-spring/web';
 import { track } from 'signia-react';
 import { CONTAINER_STATE } from './private.js';
 import { ObjectDragImpostor } from './ObjectDragImpostor.js';
+import { gestureState } from '../gestures/useGestureState.js';
 
 export interface ObjectProps extends HTMLAttributes<HTMLDivElement> {
 	value: CanvasObject;
@@ -42,7 +43,7 @@ export const Object = track(function Object({
 	const bind = useGesture({
 		onDragEnd: (state) => {
 			if (state.tap) {
-				canvas.gestureState.claimedBy = value.id;
+				gestureState.claimedBy = value.id;
 				const info: CanvasGestureInfo = {
 					alt: state.altKey,
 					ctrlOrMeta: state.ctrlKey || state.metaKey,
@@ -107,4 +108,8 @@ export function useObject() {
 		throw new Error('useObject must be used inside an Object');
 	}
 	return val;
+}
+
+export function useMaybeObject() {
+	return useContext(ObjectContext);
 }

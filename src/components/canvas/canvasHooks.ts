@@ -1,41 +1,64 @@
-import {
-	useCallback,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
-	useSyncExternalStore,
-} from 'react';
-import { useCanvas } from './CanvasProvider.jsx';
-import { CanvasGestureInfo } from '../logic/Canvas.js';
-import { useSnapshot } from 'valtio';
-import { closestLivePoint } from '../logic/math.js';
-import { LiveVector2 } from '../types.js';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { atom } from 'signia';
+import { useSnapshot } from 'valtio';
+import { CanvasGestureInfo } from '../../logic/Canvas.js';
+import { useCanvas } from './CanvasProvider.js';
 
-export function useCenter(objectId: string) {
+export function useObjectEntry(objectId: string) {
 	const canvas = useCanvas();
-	return canvas.bounds.getEntry(objectId)?.center;
+	return useSyncExternalStore(
+		(cb) =>
+			canvas.objects.subscribe('entryReplaced', (id) => {
+				if (id === objectId) cb();
+			}),
+		() => canvas.objects.get(objectId),
+	);
 }
 
-export function useOrigin(objectId: string) {
+export function useContainerEntry(containerId: string) {
 	const canvas = useCanvas();
-	return canvas.bounds.getOrigin(objectId);
+	return useSyncExternalStore(
+		(cb) =>
+			canvas.containers.subscribe('entryReplaced', (id) => {
+				if (id === containerId) cb();
+			}),
+		() => canvas.containers.get(containerId),
+	);
 }
 
-export function useSize(objectId: string) {
+export function useObjectElement(objectId: string | null) {
 	const canvas = useCanvas();
-	return canvas.bounds.getSize(objectId);
+	return useSyncExternalStore(
+		(cb) =>
+			canvas.objects.subscribe('elementChanged', (id) => {
+				if (id === objectId) cb();
+			}),
+		() => (objectId ? (canvas.objects.get(objectId)?.element ?? null) : null),
+	);
 }
 
-export function useBoundsObjectIds() {
+export function useContainerElement(containerId: string | null) {
 	const canvas = useCanvas();
-	const [ids, setIds] = useState<string[]>(() => canvas.bounds.ids);
+	return useSyncExternalStore(
+		(cb) =>
+			canvas.containers.subscribe('elementChanged', (id) => {
+				if (id === containerId) cb();
+			}),
+		() =>
+			containerId ?
+				(canvas.containers.get(containerId)?.element ?? null)
+			:	null,
+	);
+}
+
+export function useObjectIds() {
+	const canvas = useCanvas();
+	const [ids, setIds] = useState<string[]>(() => canvas.objects.ids);
 	useEffect(() => {
-		return canvas.bounds.subscribe('observedChange', () => {
-			setIds(canvas.bounds.ids);
+		return canvas.objects.subscribe('observedChange', () => {
+			setIds(canvas.objects.ids);
 		});
-	}, [canvas.bounds]);
+	}, [canvas.objects]);
 
 	return ids;
 }
@@ -160,15 +183,9 @@ export function useSelectedObjectIds() {
 	return selectedIds;
 }
 
-export function useCanvasRect() {
+export function useCanvasLimits() {
 	const canvas = useCanvas();
-
-	const [rect, setRect] = useState(() => canvas.boundary);
-	useEffect(() => {
-		return canvas.subscribe('resize', () => setRect(canvas.boundary));
-	}, [canvas]);
-
-	return rect;
+	return canvas.limits;
 }
 
 export function useDragLocked() {
@@ -181,43 +198,8 @@ export function useBoxSelectEnabled() {
 	return useSnapshot(canvas.tools).boxSelect;
 }
 
-export function useLiveObjectOrigin(objectId: string | null) {
-	const canvas = useCanvas();
-	return objectId ? canvas.getLiveOrigin(objectId) : null;
-}
-
-export function useLiveObjectCenter(objectId: string) {
-	const canvas = useCanvas();
-	return canvas.getLiveCenter(objectId);
-}
-
-export function useLiveObjectSize(objectId: string) {
-	const canvas = useCanvas();
-	return canvas.getLiveSize(objectId);
-}
-
 export const ZERO_CENTER = atom('zero center', { x: 0, y: 0 });
 export const ZERO_BOUNDS = atom('zero bounds', {
 	width: 0,
 	height: 0,
 });
-/**
- * Provides the closest boundary position to a given point of an object.
- * Useful for connecting wires.
- */
-export function useClosestLiveObjectBoundaryPosition(
-	objectId: string,
-	closestTo: LiveVector2 | null | undefined,
-) {
-	const targetCenter = useLiveObjectCenter(objectId) ?? ZERO_CENTER;
-	const targetBounds = useLiveObjectSize(objectId) ?? ZERO_BOUNDS;
-
-	return useMemo(() => {
-		return closestLivePoint(
-			targetCenter,
-			targetBounds,
-			closestTo || ZERO_CENTER,
-			-15,
-		);
-	}, [targetCenter, targetBounds]);
-}

@@ -1,24 +1,28 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import * as React from 'react';
 import { useCallback } from 'react';
+import {
+	useContainerOverObject,
+	useCreateContainer,
+} from '../components/container/containerHooks.js';
 import { useCreateObject } from '../components/object/useCreateObject.js';
 import {
-	CanvasProvider,
-	CanvasRenderer,
+	CanvasRoot,
 	CanvasWallpaper,
+	ContainerArea,
 	DebugLayer,
 	Object,
-	ObjectContainer,
 	ObjectHandle,
 	useCanvas,
 	useCreateCanvas,
+	useCreateViewport,
 	Vector2,
 	VectorState,
 	ViewportRoot,
 } from '../index.js';
 
 const meta = {
-	title: 'Demo',
+	title: 'Canvas',
 	parameters: {
 		layout: 'fullscreen',
 	},
@@ -29,44 +33,47 @@ type Story = StoryObj<typeof meta>;
 
 export const KitchenSink: Story = {
 	render() {
+		const viewport = useCreateViewport({
+			zoomLimits: {
+				max: 1.5,
+				min: 0.25,
+			},
+			defaultCenter: { x: 0, y: 0 },
+			defaultZoom: 1,
+			panLimitMode: 'viewport',
+		});
 		const canvas = useCreateCanvas({
 			limits: {
 				max: { x: 500, y: 500 },
 				min: { x: -500, y: -500 },
 			},
-			viewportConfig: {
-				zoomLimits: {
-					max: 1.5,
-					min: 0.25,
-				},
-				defaultCenter: { x: 0, y: 0 },
-				defaultZoom: 1,
-			},
+			viewport,
 			positionSnapIncrement: 24,
 		});
 		// @ts-ignore
 		window.canvas = canvas;
 		return (
-			<CanvasProvider value={canvas}>
-				<ViewportRoot className="outer">
-					<CanvasRenderer>
+			<>
+				<ViewportRoot className="outer" viewport={viewport}>
+					<CanvasRoot canvas={canvas}>
 						<CanvasWallpaper className="background" />
-						<Container
-							id="container"
-							priority={0}
-							initialPosition={{ x: 0, y: 0 }}
-						/>
+						<Container id="container" priority={0} position={{ x: 0, y: 0 }} />
 						<Container
 							id="container2"
 							priority={1}
-							initialPosition={{ x: 20, y: 20 }}
+							position={{ x: 40, y: 40 }}
 						/>
 						<DemoNode id="1" initialPosition={{ x: 10, y: 30 }} />
 						<DemoNode id="2" initialPosition={{ x: 100, y: 100 }} />
-						<DebugLayer />
-					</CanvasRenderer>
+					</CanvasRoot>
 				</ViewportRoot>
-			</CanvasProvider>
+				<DebugLayer canvas={canvas} />
+				<div className="controls">
+					<button onClick={() => canvas.resizeToFitContent(24)}>
+						Fit content
+					</button>
+				</div>
+			</>
 		);
 	},
 };
@@ -104,7 +111,11 @@ function DemoNode({
 
 	const canvas = useCanvas();
 	const zoomToFit = useCallback(() => {
-		canvas.zoomToFit(id);
+		const box = canvas.objects.getCurrentBounds(id);
+		if (!box) return;
+		canvas.viewport.fitOnScreen(box, {
+			origin: 'control',
+		});
 	}, [canvas, id]);
 
 	return (
@@ -117,24 +128,29 @@ function DemoNode({
 function Container({
 	id,
 	priority,
-	initialPosition,
+	position,
 }: {
 	id: string;
 	priority: number;
-	initialPosition: Vector2;
+	position: Vector2;
 }) {
-	const canvasObject = useCreateObject({
+	const container = useCreateContainer({
 		id,
-		initialPosition,
+		accept: (event) => event.objectId === '1',
+		priority,
 	});
+	const overId = useContainerOverObject(container);
 
 	return (
-		<Object className="container" value={canvasObject}>
-			<ObjectContainer
-				accept={(event) => event.objectId === '1'}
-				priority={priority}
-				style={{ width: '100%', height: '100%' }}
-			/>
-		</Object>
+		<ContainerArea
+			value={container}
+			className="container"
+			style={{
+				position: 'absolute',
+				left: position.x,
+				top: position.y,
+				borderColor: overId ? 'green' : 'red',
+			}}
+		/>
 	);
 }

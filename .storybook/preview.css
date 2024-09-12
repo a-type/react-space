@@ -35,3 +35,13 @@
 .container[data-object-over='true'] {
 	border-color: green;
 }
+
+.controls {
+	position: absolute;
+	top: 0;
+	left: 0;
+	padding: 12px;
+	display: flex;
+	flex-direction: row;
+	gap: 5px;
+}

@@ -6,11 +6,11 @@ import {
 	useEffect,
 	useRef,
 } from 'react';
-import { useCanvas } from './CanvasProvider.jsx';
-import { Vector2 } from '../types.js';
-import { Viewport } from '../logic/Viewport.js';
-import { gestureStateToInput } from '../logic/gestureUtils.js';
-import { useStableCallback } from '../hooks.js';
+import { Vector2 } from '../../types.js';
+import { Viewport } from '../../logic/Viewport.js';
+import { gestureStateToInput, isTouchEvent } from '../../logic/gestureUtils.js';
+import { useStableCallback } from '../../hooks.js';
+import { gestureState, useGestureState } from '../gestures/useGestureState.js';
 
 /**
  * Tracks cursor position and sends updates to the socket connection
@@ -89,7 +89,7 @@ export function useViewportGestureControls(
 				if (memo === undefined) return d;
 				const diff = d - memo;
 				if (diff !== 0) {
-					viewport.doRelativeZoom(diff / PINCH_GESTURE_DAMPING, {
+					viewport.relativeZoom(diff / PINCH_GESTURE_DAMPING, {
 						origin: 'direct',
 						centroid: { x: origin[0], y: origin[1] },
 						gestureComplete: last,
@@ -100,13 +100,13 @@ export function useViewportGestureControls(
 			onWheel: ({ delta: [x, y], event, last, metaKey, ctrlKey }) => {
 				// if (isPinching.current) return;
 				if (ctrlKey || metaKey) {
-					viewport.doRelativeZoom(-y / WHEEL_GESTURE_DAMPING, {
+					viewport.relativeZoom(-y / WHEEL_GESTURE_DAMPING, {
 						origin: 'direct',
 						centroid: { x: event.clientX, y: event.clientY },
 						gestureComplete: last,
 					});
 				} else {
-					viewport.doRelativePan(
+					viewport.relativePan(
 						viewport.viewportDeltaToWorld({
 							x,
 							y,
@@ -147,97 +147,27 @@ export function useViewportGestureControls(
 
 	const onCursorMove = useTrackCursor(viewport, handleCursorMove || noop);
 
-	const canvas = useCanvas();
-
-	const gestureDetails = useRef({
-		buttons: 0,
-		isTouch: false,
-	});
 	const bindPassiveGestures = useGesture(
 		{
 			onDrag: (state) => {
-				if (!state.last) {
-					gestureDetails.current.buttons = state.buttons;
-					gestureDetails.current.isTouch = isTouchEvent(state.event);
-				}
-
 				// ignore claimed gestures
-				if (canvas.gestureState.claimedBy) {
+				if (gestureState.claimedBy) {
 					return;
 				}
 
-				const input = gestureStateToInput(state);
-				// TODO: move the 'box select' tool override somewhere that
-				// makes sense. might want to have this element simply report
-				// gesture info to Canvas and let other logic interpret that
-				// into pan or drag.
-				if (isCanvasDrag(gestureDetails.current) || canvas.tools.boxSelect) {
-					if (!state.last) {
-						canvas.onCanvasDrag(input);
-					}
-				} else {
-					viewport.doRelativePan(
-						viewport.viewportDeltaToWorld({
-							x: -state.delta[0],
-							y: -state.delta[1],
-						}),
-						{
-							origin: 'direct',
-							gestureComplete: state.last,
-						},
-					);
-				}
+				viewport.relativePan(
+					viewport.viewportDeltaToWorld({
+						x: -state.delta[0],
+						y: -state.delta[1],
+					}),
+					{
+						origin: 'direct',
+						gestureComplete: state.last,
+					},
+				);
 			},
 			onPointerMoveCapture: ({ event }) => {
 				onCursorMove({ x: event.clientX, y: event.clientY });
-			},
-			onDragStart: (state) => {
-				gestureDetails.current.isTouch = isTouchEvent(state.event);
-				gestureDetails.current.buttons = state.buttons;
-
-				if (canvas.gestureState.claimedBy) {
-					// ignore claimed gestures
-					console.debug(
-						`drag start. gesture claimed by ${canvas.gestureState.claimedBy}`,
-					);
-					return;
-				}
-
-				if (isCanvasDrag(gestureDetails.current) || canvas.tools.boxSelect) {
-					canvas.onCanvasDragStart(gestureStateToInput(state));
-					return;
-				}
-			},
-			onDragEnd: (state) => {
-				if (canvas.gestureState.claimedBy) {
-					console.debug(
-						`drag complete. gesture claimed by ${canvas.gestureState.claimedBy}`,
-					);
-					// this gesture was claimed, but it's now over.
-					// we don't take action but we do reset the claim status
-					canvas.resetGestureState();
-					return;
-				} else {
-					console.debug(`drag complete, no claims. processing on canvas.`);
-				}
-
-				const info = gestureStateToInput(state);
-
-				// tap is triggered either by left click, or on touchscreens.
-				// tap must fire before drag end.
-				if (
-					state.tap &&
-					(isCanvasDrag(gestureDetails.current) || isTouchEvent(state.event))
-				) {
-					canvas.onCanvasTap(info);
-				}
-
-				if (isCanvasDrag(gestureDetails.current) || canvas.tools.boxSelect) {
-					canvas.onCanvasDragEnd(info);
-				}
-
-				gestureDetails.current.buttons = 0;
-				gestureDetails.current.isTouch = false;
 			},
 			onContextMenu: ({ event }) => {
 				event.preventDefault();
@@ -247,10 +177,6 @@ export function useViewportGestureControls(
 			drag: {
 				pointer: {
 					buttons: [1, 2, 4],
-					// enabling touch events on mobile devices makes it possible
-					// to differentiate between touch and non-touch events.
-					// touch: true,
-					// lock: true,
 				},
 			},
 		},
@@ -334,12 +260,12 @@ export function useKeyboardControls(viewport: Viewport) {
 			lastFrameTime = now;
 
 			if (activeKeys.pressed.has('=') || activeKeys.pressed.has('+')) {
-				viewport.doRelativeZoom(delta * ZOOM_SPEED, {
+				viewport.relativeZoom(delta * ZOOM_SPEED, {
 					origin: 'direct',
 					gestureComplete: true,
 				});
 			} else if (activeKeys.pressed.has('-')) {
-				viewport.doRelativeZoom(delta * -ZOOM_SPEED, {
+				viewport.relativeZoom(delta * -ZOOM_SPEED, {
 					origin: 'direct',
 					gestureComplete: true,
 				});
@@ -355,7 +281,7 @@ export function useKeyboardControls(viewport: Viewport) {
 			velocity.x = delta * xInput * PAN_SPEED;
 			velocity.y = delta * yInput * PAN_SPEED;
 			if (velocity.x !== 0 || velocity.y !== 0) {
-				viewport.doRelativePan(velocity, {
+				viewport.relativePan(velocity, {
 					origin: 'direct',
 					gestureComplete: true,
 				});
@@ -377,21 +303,4 @@ export function useKeyboardControls(viewport: Viewport) {
 		onKeyUp: handleKeyUp,
 		onKeyDown: handleKeyDown,
 	};
-}
-
-function isCanvasDrag({
-	isTouch,
-	buttons,
-}: {
-	isTouch: boolean;
-	buttons: number;
-}) {
-	return !!(buttons & 1) && !isTouch;
-}
-
-function isTouchEvent(event: Event) {
-	if (event.type.startsWith('touch')) return true;
-	if (event.type.startsWith('pointer'))
-		return (event as PointerEvent).pointerType === 'touch';
-	return false;
 }

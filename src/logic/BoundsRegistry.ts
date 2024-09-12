@@ -5,7 +5,7 @@ import { Box, Size, Vector2 } from '../types.js';
 
 export abstract class BoundsRegistryEntry {
 	cleanup: () => void = () => {};
-	private _element: Element | null = null;
+	_element: Element | null = null;
 	get element() {
 		return this._element;
 	}
@@ -299,7 +299,7 @@ export class BoundsRegistry<
 	};
 
 	/**
-	 * Get the instantaenous bounding box of an object.
+	 * Get the instantaneous bounding box of an object.
 	 */
 	getCurrentBounds = (objectId: string): Box | null => {
 		const origin = this.getOrigin(objectId);

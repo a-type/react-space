@@ -1,6 +1,6 @@
 import { CSSProperties, ReactNode } from 'react';
 import { stopPropagation } from '@a-type/utils';
-import { disableDragProps } from './object/ObjectHandle.js';
+import { disableDragProps } from '../object/ObjectHandle.js';
 
 export interface CanvasOverlayProps {
 	className?: string;

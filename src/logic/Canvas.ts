@@ -1,18 +1,21 @@
 import { EventSubscriber } from '@a-type/utils';
 import { clampVector, snap } from './math.js';
-import { ObjectBounds } from './ObjectBounds.js';
+import { Objects } from './Objects.js';
 import { Selections } from './Selections.js';
 import { Box, RectLimits, Vector2 } from '../types.js';
-import { Viewport, ViewportConfig, ViewportEventOrigin } from './Viewport.js';
+import { Viewport, ViewportEventOrigin } from './Viewport.js';
 import { proxy } from 'valtio';
 import { Container } from './Container.js';
 import { Containers } from './Containers.js';
+import { ElementSizeTracker } from './ElementSizeTracker.js';
+import { atom, Atom, computed, react, Signal } from 'signia';
 
 export interface CanvasOptions {
 	/** Snaps items to a world-unit grid after dropping them - defaults to 1. */
 	positionSnapIncrement?: number;
 	limits?: RectLimits;
-	viewportConfig?: Omit<ViewportConfig, 'canvas'>;
+	viewport: Viewport;
+	autoUpdateViewport?: boolean;
 }
 
 export interface CanvasGestureInfo {
@@ -61,20 +64,20 @@ export type CanvasEvents = {
 	canvasDragStart: (info: CanvasGestureInfo) => void;
 	canvasDrag: (info: CanvasGestureInfo) => void;
 	canvasDragEnd: (info: CanvasGestureInfo) => void;
-	resize: (size: RectLimits) => void;
 	[k: `containerRegistered:${string}`]: (container: Container | null) => void;
 	bound: () => void;
 };
 
 export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 	readonly viewport: Viewport;
-	readonly limits: RectLimits;
+	// readonly limits: RectLimits;
 	private _element: HTMLDivElement | null = null;
 	get element() {
 		return this._element;
 	}
+	readonly limits: Atom<RectLimits>;
 
-	readonly bounds = new ObjectBounds();
+	readonly objects = new Objects();
 	readonly containers = new Containers();
 	readonly selections = new Selections();
 
@@ -84,16 +87,26 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 	});
 
 	readonly gestureState = {
-		claimedBy: null as string | null,
 		containerCandidate: null as Container | null,
 	};
 
 	private _positionSnapIncrement = 1;
+	private _viewportUpdateReact;
 
-	constructor(options?: CanvasOptions) {
+	constructor(private options: CanvasOptions) {
 		super();
-		this.viewport = new Viewport({ ...options?.viewportConfig, canvas: this });
-		this.limits = options?.limits ?? DEFAULT_LIMITS;
+		this.viewport = options.viewport;
+		this.limits = atom('canvas limits', options?.limits ?? DEFAULT_LIMITS);
+		if (options.autoUpdateViewport ?? true) {
+			this._viewportUpdateReact = react(
+				'canvas auto-update viewport pan limits',
+				() => {
+					this.viewport.updateConfig({
+						panLimits: this.limits.value,
+					});
+				},
+			);
+		}
 		// @ts-ignore for debugging...
 		window.canvas = this;
 		this._positionSnapIncrement = options?.positionSnapIncrement ?? 1;
@@ -103,25 +116,36 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 		return this._positionSnapIncrement;
 	}
 
-	get boundary() {
-		return {
-			x: this.limits.min.x,
-			y: this.limits.min.y,
-			width: this.limits.max.x - this.limits.min.x,
-			height: this.limits.max.y - this.limits.min.y,
-		};
-	}
-
-	get center() {
-		return {
-			x: (this.limits.max.x + this.limits.min.x) / 2,
-			y: (this.limits.max.y + this.limits.min.y) / 2,
-		};
-	}
-
 	bind = (element: HTMLDivElement) => {
 		this._element = element;
 		this.emit('bound');
+	};
+
+	resize = (size: RectLimits) => {
+		this.limits.set(size);
+	};
+
+	resizeToFitContent = (padding = 0) => {
+		const bounds = this.objects.getCurrentContainer();
+		if (bounds) {
+			const maxHorizontal = Math.max(
+				Math.abs(bounds.x),
+				Math.abs(bounds.x + bounds.width),
+			);
+			const maxVertical = Math.max(
+				Math.abs(bounds.y),
+				Math.abs(bounds.y + bounds.height),
+			);
+			const min = {
+				x: -maxHorizontal - padding,
+				y: -maxVertical - padding,
+			};
+			const max = {
+				x: maxHorizontal + padding,
+				y: maxVertical + padding,
+			};
+			this.limits.set({ min, max });
+		}
 	};
 
 	snapPosition = (position: Vector2) => ({
@@ -130,13 +154,7 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 	});
 
 	clampPosition = (position: Vector2) =>
-		clampVector(position, this.limits.min, this.limits.max);
-
-	resize = (size: RectLimits) => {
-		this.limits.min = size.min;
-		this.limits.max = size.max;
-		this.emit('resize', size);
-	};
+		clampVector(position, this.limits.value.min, this.limits.value.max);
 
 	private transformGesture = (
 		{ screenPosition, delta, ...rest }: CanvasGestureInput,
@@ -153,7 +171,6 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 	};
 
 	resetGestureState = () => {
-		this.gestureState.claimedBy = null;
 		this.gestureState.containerCandidate = null;
 	};
 
@@ -177,7 +194,7 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 	onObjectDrag = (info: CanvasGestureInput) => {
 		if (!info.targetId) return;
 		const gestureInfo = this.transformGesture(info);
-		const currentBounds = this.bounds.getCurrentBounds(info.targetId);
+		const currentBounds = this.objects.getCurrentBounds(info.targetId);
 		if (currentBounds) {
 			// FIXME: doesn't really work -- when an object is already inside
 			// a container, its reported world position from this gesture
@@ -192,7 +209,7 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 		const gestureInfo = this.transformGesture(info, true);
 		if (this.gestureState.containerCandidate) {
 			// FIXME: kinda messy.
-			const currentBounds = this.bounds.getCurrentBounds(info.targetId);
+			const currentBounds = this.objects.getCurrentBounds(info.targetId);
 			if (currentBounds) {
 				this.updateContainer(info.targetId, currentBounds, gestureInfo);
 			}
@@ -207,7 +224,7 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 		info: CanvasGestureInfo,
 	) => {
 		if (objectBounds) {
-			const metadata = this.bounds.get(objectId)?.metadata;
+			const metadata = this.objects.get(objectId)?.metadata;
 			const collisions = this.containers.getIntersections(objectBounds, 0.3);
 			let candidatePriority = -1;
 			let winningContainer: Container | null = null;
@@ -215,7 +232,7 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 			for (const collision of collisions) {
 				const entry = this.containers.get(collision);
 				if (!entry) continue;
-				const containerBounds = this.bounds.getCurrentBounds(collision);
+				const containerBounds = this.objects.getCurrentBounds(collision);
 				if (!containerBounds) continue;
 				const containmentEvent: ObjectContainmentEvent<Metadata> = {
 					objectId,
@@ -254,48 +271,15 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 	};
 
 	/**
-	 * Gets the instantaneous position of an object.
-	 */
-	getOrigin = (objectId: string): Vector2 | null => {
-		return this.getLiveOrigin(objectId)?.value ?? null;
-	};
-	getCenter = (objectId: string): Vector2 | null => {
-		return this.getLiveCenter(objectId)?.value ?? null;
-	};
-
-	getLiveOrigin = (objectId: string) => this.bounds.getOrigin(objectId);
-	getLiveSize = (objectId: string) => this.bounds.getSize(objectId);
-	getLiveCenter = (objectId: string) => this.bounds.getEntry(objectId)?.center;
-
-	/**
 	 * Gets the position of an object relative to the viewport
 	 */
 	getViewportPosition = (objectId: string): Vector2 | null => {
-		const worldPosition = this.getOrigin(objectId);
+		const worldPosition = this.objects.get(objectId)?.origin.value;
 		if (!worldPosition) return null;
 		return this.viewport.worldToViewport(worldPosition);
 	};
 
-	zoomToFitAll = (
-		options: { origin?: ViewportEventOrigin; margin?: number } = {},
-	) => {
-		const bounds = this.bounds.getCurrentContainer();
-		if (bounds) {
-			this.viewport.fitOnScreen(bounds, options);
-		} else {
-			this.viewport.doMove(this.center, 1, options);
-		}
+	dispose = () => {
+		this._viewportUpdateReact?.();
 	};
-
-	zoomToFit = (
-		objectId: string,
-		options: { origin?: ViewportEventOrigin; margin?: number } = {},
-	) => {
-		const bounds = this.bounds.getCurrentBounds(objectId);
-		if (bounds) {
-			this.viewport.fitOnScreen(bounds, options);
-		}
-	};
-
-	dispose = () => {};
 }

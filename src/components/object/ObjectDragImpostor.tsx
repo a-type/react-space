@@ -7,7 +7,7 @@ import {
 	useSyncExternalStore,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { useCanvas } from '../CanvasProvider.js';
+import { useCanvas } from '../canvas/CanvasProvider.js';
 import { useObject } from './Object.js';
 
 export interface ObjectDragImpostorProps {

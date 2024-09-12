@@ -82,7 +82,7 @@ export class AutoPan extends EventSubscriber<{
 		const autoPan = this.getAutoPan();
 
 		if (vectorLength(autoPan)) {
-			this.viewport.doRelativePan(autoPan, {
+			this.viewport.relativePan(autoPan, {
 				origin: 'direct',
 			});
 			// emit an event to others

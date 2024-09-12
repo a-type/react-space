@@ -1,32 +1,35 @@
 import { useEffect, useRef } from 'react';
-import { useCanvas } from './CanvasProvider.js';
 import raf from 'raf';
+import { Canvas } from '../../logic/Canvas.js';
 
-export interface DebugLayerProps {}
+export interface DebugLayerProps {
+	canvas: Canvas;
+}
 
-export function DebugLayer({}: DebugLayerProps) {
-	const logicalCanvas = useCanvas();
-
+export function DebugLayer({ canvas: logicalCanvas }: DebugLayerProps) {
 	const ref = useRef<HTMLCanvasElement | null>(null);
 
 	useEffect(() => {
 		const loop = () => {
-			const ctx = ref.current?.getContext('2d');
+			const canvas = ref.current;
+			if (!canvas) return;
+
+			const ctx = canvas.getContext('2d');
 			if (!ctx) return;
-			ctx.clearRect(
-				logicalCanvas.viewport.topLeft.x,
-				logicalCanvas.viewport.topLeft.y,
-				logicalCanvas.viewport.size.width,
-				logicalCanvas.viewport.size.height,
-			);
+
+			const viewport = logicalCanvas.viewport;
+			canvas.width = viewport.size.width;
+			canvas.height = viewport.size.height;
+
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
 
 			ctx.strokeStyle = 'red';
 			ctx.lineWidth = 1;
-			for (const objectId of logicalCanvas.bounds.ids) {
-				const entry = logicalCanvas.bounds.getEntry(objectId);
+			for (const objectId of logicalCanvas.objects.ids) {
+				const entry = logicalCanvas.objects.getEntry(objectId);
 				if (!entry) continue;
-				const origin = entry.origin.value;
-				const size = entry.size.value;
+				const origin = viewport.worldToViewport(entry.origin.value);
+				const size = viewport.worldSizeToViewport(entry.size.value);
 				ctx.strokeRect(origin.x, origin.y, size.width, size.height);
 			}
 
@@ -35,8 +38,8 @@ export function DebugLayer({}: DebugLayerProps) {
 			for (const containerId of logicalCanvas.containers.ids) {
 				const entry = logicalCanvas.containers.getEntry(containerId);
 				if (!entry) continue;
-				const origin = entry.origin.value;
-				const size = entry.size.value;
+				const origin = viewport.worldToViewport(entry.origin.value);
+				const size = viewport.worldSizeToViewport(entry.size.value);
 				ctx.strokeRect(origin.x, origin.y, size.width, size.height);
 			}
 
@@ -54,6 +57,8 @@ export function DebugLayer({}: DebugLayerProps) {
 				inset: 0,
 				zIndex: 1000,
 				pointerEvents: 'none',
+				width: '100%',
+				height: '100%',
 			}}
 		/>
 	);

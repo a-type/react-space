@@ -1,9 +1,9 @@
 import { useSpring, animated } from '@react-spring/web';
-import { useCanvasGestures } from './canvasHooks.js';
+import { useCanvasGestures } from './canvas/canvasHooks.js';
 import { useRef, useState } from 'react';
 import { Vector2 } from '../types.js';
 import { CanvasGestureInfo } from '../logic/Canvas.js';
-import { useCanvas } from './CanvasProvider.jsx';
+import { useCanvas } from './canvas/CanvasProvider.js';
 
 export interface BoxRegionProps {
 	onPending?: (objectIds: Set<string>, info: CanvasGestureInfo) => void;
@@ -49,7 +49,7 @@ export function BoxRegion({
 				height: Math.abs(info.worldPosition.y - originRef.current.y),
 			};
 			spring.set(rect);
-			const objectIds = canvas.bounds.getIntersections(rect, tolerance);
+			const objectIds = canvas.objects.getIntersections(rect, tolerance);
 
 			// this is all just logic to diff as much as possible...
 			if (objectIds.size !== previousPending.current.size) {
@@ -70,7 +70,7 @@ export function BoxRegion({
 			previousPending.current = objectIds;
 		},
 		onDragEnd: (info) => {
-			const objectIds = canvas.bounds.getIntersections(
+			const objectIds = canvas.objects.getIntersections(
 				{
 					x: x.get(),
 					y: y.get(),

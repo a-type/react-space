@@ -1,6 +1,6 @@
 import { Container } from './Container.js';
 import { atom } from 'signia';
-import { BoundsRegistry, BoundsRegistryEntry } from './Registry.js';
+import { BoundsRegistry, BoundsRegistryEntry } from './BoundsRegistry.js';
 
 export class Containers extends BoundsRegistry<ContainerEntry, [Container]> {
 	constructor() {

@@ -15,9 +15,10 @@ import { CanvasGestureInput } from '../../logic/Canvas.js';
 import { applyGestureState } from '../../logic/gestureUtils.js';
 import { addVectors, roundVector, subtractVectors } from '../../logic/math.js';
 import { Vector2 } from '../../types.js';
-import { useDragLocked } from '../canvasHooks.js';
-import { useCanvas } from '../CanvasProvider.js';
+import { useDragLocked } from '../canvas/canvasHooks.js';
+import { useCanvas } from '../canvas/CanvasProvider.js';
 import { useObject } from './Object.js';
+import { gestureState } from '../gestures/useGestureState.js';
 
 export interface ObjectHandleProps extends HTMLAttributes<HTMLDivElement> {
 	disabled?: boolean;
@@ -105,7 +106,7 @@ function useDragHandle(disabled = false) {
 					return;
 				}
 				// claim this gesture for this object
-				canvas.gestureState.claimedBy = object.id;
+				gestureState.claimedBy = object.id;
 
 				const screenPosition = { x: state.xy[0], y: state.xy[1] };
 				autoPan.update(screenPosition);
@@ -128,7 +129,7 @@ function useDragHandle(disabled = false) {
 			onDrag: (state) => {
 				if (
 					isUnacceptableGesture(state.event) ||
-					canvas.gestureState.claimedBy !== object.id
+					gestureState.claimedBy !== object.id
 				) {
 					state.cancel();
 					return;
@@ -144,7 +145,7 @@ function useDragHandle(disabled = false) {
 			onDragEnd: (state) => {
 				if (
 					isUnacceptableGesture(state.event) ||
-					canvas.gestureState.claimedBy !== object.id
+					gestureState.claimedBy !== object.id
 				) {
 					state.cancel();
 					return;
@@ -153,7 +154,7 @@ function useDragHandle(disabled = false) {
 				// don't claim taps. let parents handle them.
 				if (state.tap) {
 					console.debug(`${object.id} is abandoning claim on tap gesture`);
-					canvas.gestureState.claimedBy = null;
+					gestureState.claimedBy = null;
 					state.cancel();
 					return;
 				}

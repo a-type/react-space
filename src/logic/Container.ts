@@ -14,17 +14,15 @@ export interface ContainerConfig {
 	id: string;
 	accept: (containmentEvent: ContainmentEvent<any>) => boolean;
 	priority?: number;
-	onCandidateStateChange?: (overObjectId: string | null) => void;
 }
 
 type ContainerEvents = {
-	elementChange: (
-		element: HTMLElement | null,
-		prevElement: HTMLElement | null,
-	) => void;
+	overObjectIdChanged: (overObjectId: string | null) => void;
 };
 
 export class Container extends EventSubscriber<ContainerEvents> {
+	overObjectId: string | null = null;
+
 	constructor(private config: ContainerConfig) {
 		super();
 	}
@@ -42,6 +40,9 @@ export class Container extends EventSubscriber<ContainerEvents> {
 	}
 
 	setCandidateState(overObjectId: string | null) {
-		this.config.onCandidateStateChange?.(overObjectId);
+		if (this.overObjectId !== overObjectId) {
+			this.overObjectId = overObjectId;
+			this.emit('overObjectIdChanged', overObjectId);
+		}
 	}
 }

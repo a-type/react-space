@@ -13,8 +13,8 @@ import { SPRINGS } from '../../constants.js';
 import { CanvasGestureInfo } from '../../logic/Canvas.js';
 import { vectorLength } from '../../logic/math.js';
 import { Vector2 } from '../../types.js';
-import { useObjectGestures } from '../canvasHooks.js';
-import { useCanvas } from '../CanvasProvider.js';
+import { useObjectGestures } from '../canvas/canvasHooks.js';
+import { useCanvas } from '../canvas/CanvasProvider.js';
 import { CONTAINER_STATE } from './private.js';
 
 export interface CanvasObject {
@@ -54,10 +54,10 @@ export function useCreateObject<Metadata = any>({
 
 	const entry = useSyncExternalStore(
 		(cb) =>
-			canvas.bounds.subscribe('entryReplaced', (objId) => {
+			canvas.objects.subscribe('entryReplaced', (objId) => {
 				if (id === objId) cb();
 			}),
-		() => canvas.bounds.register(id, metadata, initialPosition),
+		() => canvas.objects.register(id, metadata, initialPosition),
 	);
 
 	useEffect(() => {
@@ -76,7 +76,7 @@ export function useCreateObject<Metadata = any>({
 
 	const move = useCallback(
 		(position: Vector2) => {
-			const entry = canvas.bounds.getEntry(id);
+			const entry = canvas.objects.getEntry(id);
 			if (!entry) {
 				throw new Error(`object ${id} not found in bounds`);
 			}

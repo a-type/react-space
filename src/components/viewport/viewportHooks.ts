@@ -6,11 +6,10 @@ import {
 	useEffect,
 	useRef,
 } from 'react';
-import { Vector2 } from '../../types.js';
-import { Viewport } from '../../logic/Viewport.js';
-import { gestureStateToInput, isTouchEvent } from '../../logic/gestureUtils.js';
 import { useStableCallback } from '../../hooks.js';
-import { gestureState, useGestureState } from '../gestures/useGestureState.js';
+import { Viewport } from '../../logic/Viewport.js';
+import { Vector2 } from '../../types.js';
+import { gestureState } from '../gestures/useGestureState.js';
 
 /**
  * Tracks cursor position and sends updates to the socket connection
@@ -127,12 +126,8 @@ export function useViewportGestureControls(
 			// you have to keep pinching to get 'back' into the allowed range
 			pinch: {
 				scaleBounds: {
-					min:
-						(viewport.config.zoomLimits.min - initialZoom) *
-						PINCH_GESTURE_DAMPING,
-					max:
-						(viewport.config.zoomLimits.max - initialZoom) *
-						PINCH_GESTURE_DAMPING,
+					min: (viewport.zoomMin - initialZoom) * PINCH_GESTURE_DAMPING,
+					max: (viewport.zoomMax - initialZoom) * PINCH_GESTURE_DAMPING,
 				},
 				preventDefault: true,
 			},

@@ -36,7 +36,7 @@ export const KitchenSink: Story = {
 		const viewport = useCreateViewport({
 			zoomLimits: {
 				max: 1.5,
-				min: 0.25,
+				min: 'fit',
 			},
 			defaultCenter: { x: 0, y: 0 },
 			defaultZoom: 1,

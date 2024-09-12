@@ -204,6 +204,17 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 		return this._zoom;
 	}
 
+	get zoomMin() {
+		if (this.config.zoomLimits.min === 'fit') {
+			return this.zoomFitMin;
+		}
+		return this.config.zoomLimits.min;
+	}
+
+	get zoomMax() {
+		return this.config.zoomLimits.max;
+	}
+
 	/**
 	 * The center coordinate of the camera's focus, in "world" space.
 	 */

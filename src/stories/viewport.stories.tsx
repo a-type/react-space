@@ -22,15 +22,15 @@ export const CameraControls: Story = {
 			defaultCenter: { x: 0, y: 0 },
 			defaultZoom: 1,
 			panLimits: {
-				max: { x: 500, y: 500 },
-				min: { x: -500, y: -500 },
+				max: { x: 1000, y: 500 },
+				min: { x: -1000, y: -500 },
 			},
 			panLimitMode: 'viewport',
 		});
 		return (
 			<>
 				<ViewportRoot className="outer" viewport={viewport}>
-					<div style={{ width: 1000, height: 1000 }}>
+					<div style={{ width: 2000, height: 1000 }}>
 						<img
 							src="https://resources.biscuits.club/images/pashka.jpg"
 							style={{ width: '100%', height: '100%', objectFit: 'cover' }}
@@ -49,6 +49,18 @@ export const CameraControls: Story = {
 						}
 					>
 						Toggle limit mode
+					</button>
+					<button
+						onClick={() => {
+							viewport.updateConfig({
+								zoomLimits: {
+									min: 'fit',
+									max: 2,
+								},
+							});
+						}}
+					>
+						Turn on fit zoom
 					</button>
 					<button
 						onClick={() =>

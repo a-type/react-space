@@ -8,6 +8,8 @@ import {
 	subtractVectors,
 } from './math.js';
 
+const MIN_POSSIBLE_ZOOM = 0.000001;
+
 export interface ViewportConfig {
 	/** Supply a starting zoom value. Default 1 */
 	defaultZoom?: number;
@@ -24,9 +26,14 @@ export interface ViewportConfig {
 	 * Default is "center"
 	 */
 	panLimitMode?: 'center' | 'viewport';
-	/** Restrict zooming to certain boundaries. Default min 0.25, max 2 */
+	/**
+	 * Restrict zooming to certain boundaries. Default min is 'fit', max 2.
+	 * "min" has a special value, 'fit', which will ensure that at least
+	 * one axis of the content fits the viewport at all times. A percentage number can be
+	 * supplied instead to set a specific minimum zoom level.
+	 */
 	zoomLimits?: {
-		min: number;
+		min: number | 'fit';
 		max: number;
 	};
 	/**
@@ -42,7 +49,7 @@ type InternalViewportConfig = Omit<
 	'zoomLimits' | 'boundElement' | 'defaultZoom' | 'canvas'
 > & {
 	defaultZoom: number;
-	zoomLimits: { min: number; max: number };
+	zoomLimits: { min: number | 'fit'; max: number };
 };
 
 /**
@@ -101,6 +108,7 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 	private _boundElementResizeObserver = new ResizeObserver(
 		this.handleBoundElementResize,
 	);
+	private zoomFitMin = MIN_POSSIBLE_ZOOM;
 
 	constructor({ boundElement, ...config }: ViewportConfig) {
 		super();
@@ -115,7 +123,7 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 
 		this._config = {
 			defaultZoom: 1,
-			zoomLimits: { min: 0.25, max: 2 },
+			zoomLimits: { min: 'fit', max: 2 },
 			panLimitMode: 'center',
 			...config,
 		};
@@ -130,6 +138,19 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 		this._boundElementSize = size;
 		if (offset) {
 			this._boundElementOffset = offset;
+		}
+		// computed as the minimum zoom level where one axis of the bounds
+		// takes up the entire viewport. if pan limits are unbounded, it
+		// defaults to MIN_POSSIBLE_ZOOM
+		if (this.config.panLimits) {
+			this.zoomFitMin = Math.min(
+				this._boundElementSize.width /
+					(this.config.panLimits.max.x - this.config.panLimits.min.x),
+				this._boundElementSize.height /
+					(this.config.panLimits.max.y - this.config.panLimits.min.y),
+			);
+		} else {
+			this.zoomFitMin = MIN_POSSIBLE_ZOOM;
 		}
 		this.emit('sizeChanged', size);
 	};
@@ -417,7 +438,9 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 			// then apply the zoom
 			this._zoom = clamp(
 				zoomValue,
-				this.config.zoomLimits.min,
+				this.config.zoomLimits.min === 'fit' ?
+					this.zoomFitMin
+				:	this.config.zoomLimits.min,
 				this.config.zoomLimits.max,
 			);
 			// now determine the difference, in screen pixels, between the old focal point
@@ -432,7 +455,9 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 		} else {
 			this._zoom = clamp(
 				zoomValue,
-				this.config.zoomLimits.min,
+				this.config.zoomLimits.min === 'fit' ?
+					this.zoomFitMin
+				:	this.config.zoomLimits.min,
 				this.config.zoomLimits.max,
 			);
 			// apply a pan with the current pan position to recalculate pan

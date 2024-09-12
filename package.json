@@ -7,6 +7,10 @@
 		".": {
 			"import": "./dist/index.js",
 			"types": "./dist/index.d.ts"
+		},
+		"./viewport": {
+			"import": "./dist/viewport.js",
+			"types": "./dist/viewport.d.ts"
 		}
 	},
 	"publishConfig": {

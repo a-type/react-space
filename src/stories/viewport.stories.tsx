@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import * as React from 'react';
-import { useCreateViewport, ViewportRoot } from '../index.js';
+import { useCreateViewport, ViewportRoot } from '../viewport.js';
 
 const meta = {
 	title: 'Viewport',

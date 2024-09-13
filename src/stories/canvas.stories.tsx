@@ -63,6 +63,11 @@ export const KitchenSink: Story = {
 							priority={1}
 							position={{ x: 40, y: 40 }}
 						/>
+						<Container
+							id="container3"
+							priority={2}
+							position={{ x: -200, y: 100 }}
+						/>
 						<DemoNode id="1" initialPosition={{ x: 10, y: 30 }} />
 						<DemoNode id="2" initialPosition={{ x: 100, y: 100 }} />
 					</CanvasRoot>
@@ -86,31 +91,33 @@ function DemoNode({
 	initialPosition: Vector2;
 }) {
 	const [container, setContainer] = React.useState<string | null>(null);
-	const [position] = React.useState(() => new VectorState(initialPosition));
+	const [position, setPosition] = React.useState(() => initialPosition);
 
 	const canvasObject = useCreateObject({
 		id,
-		initialPosition,
+		initialPosition: position,
 		containerId: container,
-		onDrag: (event) => {
-			position.set(event.worldPosition);
-		},
+		onDrag: (event) => {},
 		onDrop: (event) => {
 			if (event.container) {
 				setContainer(event.container.id);
-				position.set(event.container.relativePosition);
+				setPosition(event.container.relativePosition);
+				console.log(
+					'drop on container',
+					event.worldPosition,
+					event.container.relativePosition,
+				);
 			} else {
 				setContainer(null);
-				position.set(event.worldPosition);
+				setPosition(event.worldPosition);
+				console.log('drop on canvas', event.worldPosition);
 			}
 		},
 	});
 
-	React.useEffect(() => position.subscribe(canvasObject.move), [position]);
-
 	const canvas = useCanvas();
 	const zoomToFit = useCallback(() => {
-		const box = canvas.objects.getCurrentBounds(id);
+		const box = canvas.bounds.getCurrentBounds(id);
 		if (!box) return;
 		canvas.viewport.fitOnScreen(box, {
 			origin: 'control',

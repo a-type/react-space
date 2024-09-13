@@ -88,19 +88,19 @@ export function MinimapRect({
 		if (!rect || !entry) return;
 
 		return react('minimap rect', () => {
-			rect.x.baseVal.value = entry.origin.value.x;
-			rect.y.baseVal.value = entry.origin.value.y;
-			rect.width.baseVal.value = entry.size.value.width;
-			rect.height.baseVal.value = entry.size.value.height;
+			rect.x.baseVal.value = entry.transform.worldOrigin.value.x;
+			rect.y.baseVal.value = entry.transform.worldOrigin.value.y;
+			rect.width.baseVal.value = entry.transform.size.value.width;
+			rect.height.baseVal.value = entry.transform.size.value.height;
 		});
 	}, [entry]);
 
 	return (
 		<rect
-			x={entry?.origin.value.x}
-			y={entry?.origin.value.y}
-			width={entry?.size.value.width}
-			height={entry?.size.value.height}
+			x={entry?.transform.worldOrigin.value.x}
+			y={entry?.transform.worldOrigin.value.y}
+			width={entry?.transform.size.value.width}
+			height={entry?.transform.size.value.height}
 			fill="transparent"
 			stroke="black"
 			strokeWidth={1}

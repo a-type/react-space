@@ -41,27 +41,24 @@ export function DebugLayer({ canvas: logicalCanvas }: DebugLayerProps) {
 			ctx.strokeStyle = 'red';
 			ctx.fillStyle = 'red';
 
-			for (const objectId of logicalCanvas.objects.ids) {
-				const entry = logicalCanvas.objects.getEntry(objectId);
+			for (const objectId of logicalCanvas.bounds.ids) {
+				const entry = logicalCanvas.bounds.get(objectId);
 				if (!entry) continue;
-				const origin = viewport.worldToViewport(entry.origin.value);
-				const size = viewport.worldSizeToViewport(entry.size.value);
+				if (entry.data.type === 'container') {
+					ctx.strokeStyle = 'blue';
+					ctx.fillStyle = 'blue';
+				} else {
+					ctx.strokeStyle = 'red';
+					ctx.fillStyle = 'red';
+				}
+				const origin = viewport.worldToViewport(
+					entry.transform.worldOrigin.value,
+				);
+				const size = viewport.worldSizeToViewport(entry.transform.size.value);
 				// const origin = entry.origin.value;
 				// const size = entry.size.value;
 				ctx.strokeRect(origin.x, origin.y, size.width, size.height);
 				ctx.fillText(objectId, origin.x, origin.y);
-			}
-
-			ctx.strokeStyle = 'blue';
-			ctx.fillStyle = 'blue';
-			ctx.lineWidth = 1;
-			for (const containerId of logicalCanvas.containers.ids) {
-				const entry = logicalCanvas.containers.getEntry(containerId);
-				if (!entry) continue;
-				const origin = viewport.worldToViewport(entry.origin.value);
-				const size = viewport.worldSizeToViewport(entry.size.value);
-				ctx.strokeRect(origin.x, origin.y, size.width, size.height);
-				ctx.fillText(containerId, origin.x, origin.y);
 			}
 
 			// print viewport zoom level and center point in top left

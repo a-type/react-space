@@ -2,32 +2,34 @@ import { EventSubscriber } from '@a-type/utils';
 import { SpatialHash } from './SpatialHash.js';
 import { Atom, react, Signal } from 'signia';
 import { Box, Size, Vector2 } from '../types.js';
+import { Transform, TransformInit } from './Transform.js';
 
-export abstract class BoundsRegistryEntry {
+export interface BoundsEntryData {
+	type: string;
+}
+
+export class BoundsRegistryEntry<TData extends BoundsEntryData> {
 	cleanup: () => void = () => {};
 	_element: Element | null = null;
 	get element() {
 		return this._element;
 	}
 
-	onElementChange: (
-		id: string,
-		element: Element | null,
-		prev: Element | null,
-	) => void = () => {};
-
 	constructor(
 		readonly id: string,
-		readonly origin: Signal<Vector2>,
-		readonly size: Atom<Size>,
-		public parentId?: string,
-	) {}
-
-	track = (callback: (id: string, origin: Vector2, size: Size) => void) => {
-		this.cleanup = react('object bounds change', () => {
-			callback(this.id, this.origin.value, this.size.value);
+		readonly transform: Transform,
+		public data: TData,
+		onEntryChange: (id: string, bounds: Box) => void,
+		private onElementChange: (
+			id: string,
+			element: Element | null,
+			prev: Element | null,
+		) => void,
+	) {
+		this.cleanup = react(`${id} entry change`, () => {
+			onEntryChange(id, transform.bounds.value);
 		});
-	};
+	}
 
 	ref = (element: Element | null) => {
 		const prev = this.element;
@@ -37,11 +39,15 @@ export abstract class BoundsRegistryEntry {
 
 	updateFromResize(entry: ResizeObserverEntry) {
 		const bounds = entry.borderBoxSize[0];
-		this.size.set({
+		this.transform.size.set({
 			width: bounds.inlineSize,
 			height: bounds.blockSize,
 		});
 	}
+
+	setData = (data: TData) => {
+		this.data = data;
+	};
 }
 
 export type BoundsRegistryEvents = {
@@ -50,45 +56,59 @@ export type BoundsRegistryEvents = {
 	elementChanged: (id: string, element: Element | null) => void;
 };
 
+export type RegistryTransformInit = Omit<TransformInit, 'initialParent'> & {
+	initialParent?: string | null;
+};
+
 export class BoundsRegistry<
-	T extends BoundsRegistryEntry,
-	RegisterParams extends any[],
+	TDataTypes extends BoundsEntryData,
 > extends EventSubscriber<BoundsRegistryEvents> {
-	protected entries: Map<string, T> = new Map();
+	protected entries: Map<string, BoundsRegistryEntry<TDataTypes>> = new Map();
 	private deregistered = new Set<string>();
 	private sizeObserver: ResizeObserver;
 	private spatialHash = new SpatialHash<string>(100);
 	private spatialHashRecomputeTimers = new Map<string, any>();
 
-	constructor(
-		private config: {
-			init: (id: string, ...params: RegisterParams) => T;
-			update: (entry: T, ...params: RegisterParams) => void;
-		},
-	) {
+	constructor() {
 		super();
 		this.sizeObserver = new ResizeObserver(this.handleDOMChanges);
 	}
 
-	register(id: string, ...params: RegisterParams) {
+	register(id: string, transformInit: RegistryTransformInit, data: TDataTypes) {
 		this.deregistered.delete(id);
+
+		const parentEntry =
+			transformInit.initialParent ?
+				this.get(transformInit.initialParent)
+			:	null;
 
 		let entry = this.entries.get(id);
 		if (!entry) {
-			entry = this.config.init(id, ...params);
-			entry.track(this.onEntryChange);
-			entry.onElementChange = this.onElementChange;
+			entry = new BoundsRegistryEntry(
+				id,
+				new Transform({
+					...transformInit,
+					initialParent: parentEntry?.transform,
+				}),
+				data,
+				this.onEntryChange,
+				this.onElementChange,
+			);
 			this.entries.set(id, entry);
 			this.emit('entryReplaced', id);
+		} else {
+			entry.transform.apply({
+				...transformInit,
+				initialParent: parentEntry?.transform,
+			});
+			entry.setData(data);
 		}
-
-		this.updateHash(id, entry.origin.value, entry.size.value);
 
 		return entry;
 	}
 
-	private onEntryChange = (id: string, origin: Vector2, size: Size) => {
-		this.debouncedUpdateHash(id, origin, size);
+	private onEntryChange = (id: string, bounds: Box) => {
+		this.debouncedUpdateHash(id, bounds);
 	};
 
 	private onElementChange = (
@@ -110,25 +130,16 @@ export class BoundsRegistry<
 		setTimeout(this.cleanupDeregistered, 100);
 	};
 
-	updateHash = (objectId: string, origin: Vector2, size: Size) => {
-		const x = origin.x;
-		const y = origin.y;
-		const width = size.width;
-		const height = size.height;
-
-		this.spatialHash.replace(objectId, { x, y, width, height });
+	updateHash = (objectId: string, bounds: Box) => {
+		this.spatialHash.replace(objectId, bounds);
 	};
 
-	private debouncedUpdateHash = (
-		objectId: string,
-		origin: Vector2,
-		size: Size,
-	) => {
+	private debouncedUpdateHash = (objectId: string, bounds: Box) => {
 		clearTimeout(this.spatialHashRecomputeTimers.get(objectId));
 		this.spatialHashRecomputeTimers.set(
 			objectId,
 			setTimeout(() => {
-				this.updateHash(objectId, origin, size);
+				this.updateHash(objectId, bounds);
 			}, 500),
 		);
 	};
@@ -138,7 +149,6 @@ export class BoundsRegistry<
 			const entry = this.entries.get(id);
 			if (entry) {
 				entry.cleanup();
-				this.onDeregister(entry);
 				this.spatialHash.remove(id);
 			}
 			this.entries.delete(id);
@@ -147,8 +157,6 @@ export class BoundsRegistry<
 		}
 		this.deregistered.clear();
 	};
-
-	protected onDeregister(entry: T) {}
 
 	get(id: string) {
 		return this.entries.get(id);
@@ -162,13 +170,13 @@ export class BoundsRegistry<
 		const entry = this.get(id);
 
 		if (element === null) {
-			entry?.size.set({ width: 0, height: 0 });
+			entry?.transform.size.set({ width: 0, height: 0 });
 			return;
 		}
 
 		element.setAttribute('data-observed-object-id', id);
 		this.sizeObserver.observe(element);
-		entry?.size.set({
+		entry?.transform.size.set({
 			width: element.clientWidth,
 			height: element.clientHeight,
 		});
@@ -196,12 +204,20 @@ export class BoundsRegistry<
 		});
 	};
 
-	getIntersections = (box: Box, threshold: number) => {
+	getIntersections = <T extends TDataTypes>(
+		box: Box,
+		threshold: number,
+		filter?: (data: TDataTypes) => boolean,
+	) => {
 		const nearby = this.spatialHash.queryByRect(box);
-		const intersections = new Set<string>();
+		const intersections = new Array<BoundsRegistryEntry<T>>();
 		for (const id of nearby) {
+			const entry = this.get(id);
+			if (!entry) continue;
+			if (filter && !filter(entry.data)) continue;
+
 			if (this.intersects(id, box, threshold)) {
-				intersections.add(id);
+				intersections.push(entry as unknown as BoundsRegistryEntry<T>);
 			}
 		}
 		return intersections;
@@ -230,15 +246,13 @@ export class BoundsRegistry<
 	 * 0 means any part intersects, 1 means the object must be fully enclosed.
 	 */
 	intersects = (objectId: string, box: Box, threshold: number) => {
-		const objectOrigin = this.getOrigin(objectId);
-		const objectSize = this.getSize(objectId);
+		const entry = this.get(objectId);
+		if (!entry) return false;
 
-		if (!objectOrigin || !objectSize) return false;
-
-		const objectX = objectOrigin.value.x;
-		const objectY = objectOrigin.value.y;
-		const objectWidth = objectSize.value.width;
-		const objectHeight = objectSize.value.height;
+		const objectX = entry.transform.bounds.value.x;
+		const objectY = entry.transform.bounds.value.y;
+		const objectWidth = entry.transform.bounds.value.width;
+		const objectHeight = entry.transform.bounds.value.height;
 
 		const objectBottomRight = {
 			x: objectX + objectWidth,
@@ -309,30 +323,8 @@ export class BoundsRegistry<
 	 * Get the instantaneous bounding box of an object.
 	 */
 	getCurrentBounds = (objectId: string): Box | null => {
-		const origin = this.getOrigin(objectId);
-		const size = this.getSize(objectId);
-
-		if (!origin && !size) {
-			return null;
-		}
-
-		const bounds: Box = {
-			x: 0,
-			y: 0,
-			width: 0,
-			height: 0,
-		};
-
-		if (origin) {
-			bounds.x = origin.value.x;
-			bounds.y = origin.value.y;
-		}
-		if (size) {
-			bounds.width = size.value.width;
-			bounds.height = size.value.height;
-		}
-
-		return bounds;
+		const entry = this.get(objectId);
+		return entry?.transform.bounds.value ?? null;
 	};
 
 	/**
@@ -364,17 +356,5 @@ export class BoundsRegistry<
 		}
 
 		return container;
-	};
-
-	getEntry = (objectId: string) => {
-		return this.entries.get(objectId);
-	};
-
-	getSize = (objectId: string) => {
-		return this.entries.get(objectId)?.size ?? null;
-	};
-
-	getOrigin = (objectId: string) => {
-		return this.entries.get(objectId)?.origin ?? null;
 	};
 }

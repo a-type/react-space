@@ -1,10 +1,4 @@
-import {
-	createContext,
-	useContext,
-	useEffect,
-	useState,
-	useSyncExternalStore,
-} from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { Box } from '../../types.js';
 import { CanvasGestureInfo } from '../../logic/Canvas.js';
 import { useCanvas } from '../canvas/CanvasProvider.js';

@@ -55,25 +55,39 @@ export function useCreateObject<Metadata = any>({
 
 	const metadataRef = useRef(metadata);
 	metadataRef.current = metadata;
-	const parentContainer = useMaybeContainer();
 	const entry = useSyncExternalStore(
 		(cb) =>
-			canvas.objects.subscribe('entryReplaced', (objId) => {
+			canvas.bounds.subscribe('entryReplaced', (objId) => {
 				if (id === objId) cb();
 			}),
 		() =>
-			canvas.objects.register(id, metadataRef, initialPosition, {
-				parentContainerId: parentContainer?.id,
-			}),
+			canvas.bounds.register(
+				id,
+				{
+					id,
+					initialParent: containerId,
+					initialPosition,
+				},
+				{ type: 'object', metadata: metadataRef },
+			),
 	);
 
 	useEffect(() => {
+		const container = containerId ? canvas.bounds.get(containerId) : null;
+		entry.transform.apply({
+			id: entry.id, // TODO: not this
+			initialParent: container?.transform ?? null,
+			initialPosition,
+		});
+	}, [containerId, initialPosition, entry, canvas]);
+
+	useEffect(() => {
 		const unsub = react('update position spring', () => {
-			if (isDraggingRef.current) {
-				positionSpring.set(entry.origin.value);
-			} else {
-				positionSpring.start(entry.origin.value);
-			}
+			// if (isDraggingRef.current) {
+			positionSpring.set(entry.transform.origin.value);
+			// } else {
+			// 	positionSpring.start(entry.transform.origin.value);
+			// }
 		});
 
 		return () => {
@@ -83,11 +97,11 @@ export function useCreateObject<Metadata = any>({
 
 	const move = useCallback(
 		(position: Vector2) => {
-			const entry = canvas.objects.getEntry(id);
+			const entry = canvas.bounds.get(id);
 			if (!entry) {
 				throw new Error(`object ${id} not found in bounds`);
 			}
-			entry?.origin.set(position);
+			entry?.transform.position.set(position);
 		},
 		[canvas, id],
 	);
@@ -109,6 +123,7 @@ export function useCreateObject<Metadata = any>({
 					startDragging();
 				}
 				onDrag?.(info);
+				move(info.worldPosition);
 			},
 			onDragEnd(info) {
 				stopDragging();

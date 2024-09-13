@@ -1,17 +1,25 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { atom } from 'signia';
 import { useSnapshot } from 'valtio';
-import { CanvasGestureInfo } from '../../logic/Canvas.js';
+import {
+	CanvasGestureInfo,
+	ContainerData,
+	ObjectData,
+} from '../../logic/Canvas.js';
 import { useCanvas } from './CanvasProvider.js';
+import { BoundsRegistryEntry } from '../../logic/BoundsRegistry.js';
 
 export function useObjectEntry(objectId: string) {
 	const canvas = useCanvas();
 	return useSyncExternalStore(
 		(cb) =>
-			canvas.objects.subscribe('entryReplaced', (id) => {
+			canvas.bounds.subscribe('entryReplaced', (id) => {
 				if (id === objectId) cb();
 			}),
-		() => canvas.objects.get(objectId),
+		() =>
+			canvas.bounds.get(objectId) as BoundsRegistryEntry<
+				ObjectData<any>
+			> | null,
 	);
 }
 
@@ -19,10 +27,13 @@ export function useContainerEntry(containerId: string) {
 	const canvas = useCanvas();
 	return useSyncExternalStore(
 		(cb) =>
-			canvas.containers.subscribe('entryReplaced', (id) => {
+			canvas.bounds.subscribe('entryReplaced', (id) => {
 				if (id === containerId) cb();
 			}),
-		() => canvas.containers.get(containerId),
+		() =>
+			canvas.bounds.get(containerId) as BoundsRegistryEntry<
+				ContainerData<any>
+			> | null,
 	);
 }
 
@@ -30,35 +41,23 @@ export function useObjectElement(objectId: string | null) {
 	const canvas = useCanvas();
 	return useSyncExternalStore(
 		(cb) =>
-			canvas.objects.subscribe('elementChanged', (id) => {
+			canvas.bounds.subscribe('elementChanged', (id) => {
 				if (id === objectId) cb();
 			}),
-		() => (objectId ? (canvas.objects.get(objectId)?.element ?? null) : null),
+		() => (objectId ? (canvas.bounds.get(objectId)?.element ?? null) : null),
 	);
 }
 
-export function useContainerElement(containerId: string | null) {
-	const canvas = useCanvas();
-	return useSyncExternalStore(
-		(cb) =>
-			canvas.containers.subscribe('elementChanged', (id) => {
-				if (id === containerId) cb();
-			}),
-		() =>
-			containerId ?
-				(canvas.containers.get(containerId)?.element ?? null)
-			:	null,
-	);
-}
+export const useContainerElement = useObjectElement;
 
 export function useObjectIds() {
 	const canvas = useCanvas();
-	const [ids, setIds] = useState<string[]>(() => canvas.objects.ids);
+	const [ids, setIds] = useState<string[]>(() => canvas.bounds.ids);
 	useEffect(() => {
-		return canvas.objects.subscribe('observedChange', () => {
-			setIds(canvas.objects.ids);
+		return canvas.bounds.subscribe('observedChange', () => {
+			setIds(canvas.bounds.ids);
 		});
-	}, [canvas.objects]);
+	}, [canvas.bounds]);
 
 	return ids;
 }

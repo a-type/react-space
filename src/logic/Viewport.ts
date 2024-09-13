@@ -320,7 +320,8 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 
 	/**
 	 * Converts a world point to a viewport (screen, pixel) point. The point
-	 * will be relative to the viewport element.
+	 * will be relative to the viewport element. This is the inverse of
+	 * viewportToWorld.
 	 */
 	worldToViewport = (worldPoint: Vector2) => {
 		return {

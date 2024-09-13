@@ -17,6 +17,8 @@ export interface ContainerAreaProps extends HTMLAttributes<HTMLDivElement> {
 export function ContainerArea({ value, ...rest }: ContainerAreaProps) {
 	const canvas = useCanvas();
 	const object = useMaybeObject();
+
+	// TODO: consistency of approach with object
 	const entry = useSyncExternalStore(
 		(cb) =>
 			canvas.bounds.subscribe('entryReplaced', (id) => {
@@ -33,6 +35,13 @@ export function ContainerArea({ value, ...rest }: ContainerAreaProps) {
 				},
 			),
 	);
+	useEffect(() => {
+		const objectEntry = object ? canvas.bounds.get(object.id) : null;
+		entry.transform.apply({
+			id: entry.id,
+			initialParent: objectEntry?.transform ?? null,
+		});
+	}, [canvas, entry, object]);
 
 	const positionRef = useRef<HTMLDivElement>(null);
 	const finalRef = useMergedRef<HTMLDivElement>(positionRef, entry.ref);

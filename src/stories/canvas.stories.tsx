@@ -96,7 +96,6 @@ function DemoNode({
 			position.set(event.worldPosition);
 		},
 		onDrop: (event) => {
-			console.log('drop', id, event);
 			if (event.container) {
 				setContainer(event.container.id);
 				position.set(event.container.relativePosition);
@@ -149,7 +148,7 @@ function Container({
 				position: 'absolute',
 				left: position.x,
 				top: position.y,
-				borderColor: overId ? 'green' : 'red',
+				borderColor: overId ? 'green' : 'black',
 			}}
 		/>
 	);

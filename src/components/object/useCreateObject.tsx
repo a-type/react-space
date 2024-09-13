@@ -16,6 +16,7 @@ import { Vector2 } from '../../types.js';
 import { useObjectGestures } from '../canvas/canvasHooks.js';
 import { useCanvas } from '../canvas/CanvasProvider.js';
 import { CONTAINER_STATE } from './private.js';
+import { useMaybeContainer } from '../container/containerHooks.js';
 
 export interface CanvasObject {
 	id: string;
@@ -52,12 +53,18 @@ export function useCreateObject<Metadata = any>({
 		config: SPRINGS.QUICK,
 	}));
 
+	const metadataRef = useRef(metadata);
+	metadataRef.current = metadata;
+	const parentContainer = useMaybeContainer();
 	const entry = useSyncExternalStore(
 		(cb) =>
 			canvas.objects.subscribe('entryReplaced', (objId) => {
 				if (id === objId) cb();
 			}),
-		() => canvas.objects.register(id, metadata, initialPosition),
+		() =>
+			canvas.objects.register(id, metadataRef, initialPosition, {
+				parentContainerId: parentContainer?.id,
+			}),
 	);
 
 	useEffect(() => {

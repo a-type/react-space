@@ -9,6 +9,7 @@ export abstract class BoundsRegistryEntry {
 	get element() {
 		return this._element;
 	}
+
 	onElementChange: (
 		id: string,
 		element: Element | null,
@@ -19,6 +20,7 @@ export abstract class BoundsRegistryEntry {
 		readonly id: string,
 		readonly origin: Signal<Vector2>,
 		readonly size: Atom<Size>,
+		public parentId?: string,
 	) {}
 
 	track = (callback: (id: string, origin: Vector2, size: Size) => void) => {
@@ -32,6 +34,14 @@ export abstract class BoundsRegistryEntry {
 		this._element = element;
 		this.onElementChange(this.id, element, prev);
 	};
+
+	updateFromResize(entry: ResizeObserverEntry) {
+		const bounds = entry.borderBoxSize[0];
+		this.size.set({
+			width: bounds.inlineSize,
+			height: bounds.blockSize,
+		});
+	}
 }
 
 export type BoundsRegistryEvents = {
@@ -53,6 +63,7 @@ export class BoundsRegistry<
 	constructor(
 		private config: {
 			init: (id: string, ...params: RegisterParams) => T;
+			update: (entry: T, ...params: RegisterParams) => void;
 		},
 	) {
 		super();
@@ -177,14 +188,10 @@ export class BoundsRegistry<
 		entries.forEach((entry) => {
 			const objectId = entry.target.getAttribute('data-observed-object-id');
 			if (!objectId) return;
-			const bounds = entry.borderBoxSize[0];
 			const registration = this.entries.get(objectId);
 			if (registration) {
 				// x/y are not helpful here
-				registration.size.set({
-					width: bounds.inlineSize,
-					height: bounds.blockSize,
-				});
+				registration.updateFromResize(entry);
 			}
 		});
 	};

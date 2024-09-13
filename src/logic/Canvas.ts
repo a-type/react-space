@@ -5,7 +5,7 @@ import { Selections } from './Selections.js';
 import { Box, RectLimits, Vector2 } from '../types.js';
 import { Viewport, ViewportEventOrigin } from './Viewport.js';
 import { proxy } from 'valtio';
-import { Container } from './Container.js';
+import { Container } from '../components/container/containerHooks.js';
 import { Containers } from './Containers.js';
 import { ElementSizeTracker } from './ElementSizeTracker.js';
 import { atom, Atom, computed, react, Signal } from 'signia';
@@ -64,8 +64,9 @@ export type CanvasEvents = {
 	canvasDragStart: (info: CanvasGestureInfo) => void;
 	canvasDrag: (info: CanvasGestureInfo) => void;
 	canvasDragEnd: (info: CanvasGestureInfo) => void;
-	[k: `containerRegistered:${string}`]: (container: Container | null) => void;
 	bound: () => void;
+	containerObjectOver: (containerId: string, objectId: string) => void;
+	containerObjectOut: (containerId: string, objectId: string) => void;
 };
 
 export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
@@ -213,7 +214,11 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 			if (currentBounds) {
 				this.updateContainer(info.targetId, currentBounds, gestureInfo);
 			}
-			this.gestureState.containerCandidate.setCandidateState(null);
+			this.emit(
+				'containerObjectOut',
+				this.gestureState.containerCandidate.id,
+				info.targetId,
+			);
 		}
 		this.emit('objectDragEnd', gestureInfo);
 	};
@@ -232,11 +237,11 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 			for (const collision of collisions) {
 				const entry = this.containers.get(collision);
 				if (!entry) continue;
-				const containerBounds = this.objects.getCurrentBounds(collision);
+				const containerBounds = this.containers.getCurrentBounds(collision);
 				if (!containerBounds) continue;
 				const containmentEvent: ObjectContainmentEvent<Metadata> = {
 					objectId,
-					objectMetadata: metadata,
+					objectMetadata: metadata?.current,
 					objectBounds,
 					ownBounds: containerBounds,
 					gestureInfo: info,
@@ -251,8 +256,16 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 				}
 			}
 			if (winningContainer !== this.gestureState.containerCandidate) {
-				this.gestureState.containerCandidate?.setCandidateState(null);
-				winningContainer?.setCandidateState(objectId);
+				if (this.gestureState.containerCandidate) {
+					this.emit(
+						'containerObjectOut',
+						this.gestureState.containerCandidate.id,
+						objectId,
+					);
+				}
+				if (winningContainer) {
+					this.emit('containerObjectOver', winningContainer.id, objectId);
+				}
 				this.gestureState.containerCandidate = winningContainer;
 			}
 			if (winningContainer) {

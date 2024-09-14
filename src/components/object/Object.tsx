@@ -79,20 +79,24 @@ export const Object = track(function Object({
 	return (
 		<ContainerPortal containerId={value.containerId}>
 			<ObjectContext.Provider value={value}>
-				<ObjectDragImpostor>
-					{({ hidden }) => (
-						<animated.div
-							ref={finalRef}
+				{/*
+				TODO: this strategy isn't working. double rendering
+				children is causing unwanted side-effects.
+				*/}
+				<ObjectDragImpostor externalRealRef={finalRef}>
+					{({ style: renderStyle, ref }) => (
+						<div
+							ref={ref}
 							style={{
 								...style,
-								visibility: hidden ? 'hidden' : 'visible',
+								...renderStyle,
 							}}
 							{...bind()}
 							{...rest}
 							data-object-over={!!containerState.overId}
 						>
 							{children}
-						</animated.div>
+						</div>
 					)}
 				</ObjectDragImpostor>
 			</ObjectContext.Provider>

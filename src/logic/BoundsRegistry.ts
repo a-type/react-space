@@ -26,12 +26,14 @@ export class BoundsRegistryEntry<TData extends BoundsEntryData> {
 			prev: Element | null,
 		) => void,
 	) {
+		console.log('BoundsRegistryEntry created for', id);
 		this.cleanup = react(`${id} entry change`, () => {
 			onEntryChange(id, transform.bounds.value);
 		});
 	}
 
 	ref = (element: Element | null) => {
+		console.log(this.id, 'ref', element);
 		const prev = this.element;
 		this._element = element;
 		this.onElementChange(this.id, element, prev);
@@ -216,7 +218,7 @@ export class BoundsRegistry<
 			if (!entry) continue;
 			if (filter && !filter(entry.data)) continue;
 
-			if (this.intersects(id, box, threshold)) {
+			if (this.intersects(entry, box, threshold)) {
 				intersections.push(entry as unknown as BoundsRegistryEntry<T>);
 			}
 		}
@@ -245,10 +247,11 @@ export class BoundsRegistry<
 	 * Threshold is a positive percentage required to pass intersection;
 	 * 0 means any part intersects, 1 means the object must be fully enclosed.
 	 */
-	intersects = (objectId: string, box: Box, threshold: number) => {
-		const entry = this.get(objectId);
-		if (!entry) return false;
-
+	intersects = (
+		entry: BoundsRegistryEntry<any>,
+		box: Box,
+		threshold: number,
+	) => {
 		const objectX = entry.transform.bounds.value.x;
 		const objectY = entry.transform.bounds.value.y;
 		const objectWidth = entry.transform.bounds.value.width;
@@ -288,7 +291,7 @@ export class BoundsRegistry<
 				Math.min(objectBottomRight.y, boxBottomRight.y) -
 					Math.max(objectY, boxTopLeft.y),
 			);
-			return intersectionArea / objectHeight > threshold;
+			return intersectionArea / box.height > threshold;
 		} else if (objectHeight === 0) {
 			// box must enclose the object vertically
 			if (objectY > boxBottomRight.y || objectY < boxTopLeft.y) return false;
@@ -299,11 +302,11 @@ export class BoundsRegistry<
 				Math.min(objectBottomRight.x, boxBottomRight.x) -
 					Math.max(objectX, boxTopLeft.x),
 			);
-			return intersectionArea / objectWidth > threshold;
+			return intersectionArea / box.width > threshold;
 		}
 
 		// ensure this isn't 0 as it's used as a divisor (although we should be safe here)
-		const testArea = Math.max(Number.MIN_VALUE, objectWidth * objectHeight);
+		const testArea = Math.max(Number.MIN_VALUE, box.width * box.height);
 		const intersectionArea =
 			Math.max(
 				0,

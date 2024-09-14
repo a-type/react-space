@@ -17,7 +17,6 @@ import {
 	useCreateCanvas,
 	useCreateViewport,
 	Vector2,
-	VectorState,
 	ViewportRoot,
 } from '../index.js';
 
@@ -70,6 +69,11 @@ export const KitchenSink: Story = {
 						/>
 						<DemoNode id="1" initialPosition={{ x: 10, y: 30 }} />
 						<DemoNode id="2" initialPosition={{ x: 100, y: 100 }} />
+						<MovableContainer
+							id="3"
+							priority={3}
+							position={{ x: 200, y: 200 }}
+						/>
 					</CanvasRoot>
 				</ViewportRoot>
 				<DebugLayer canvas={canvas} />
@@ -158,5 +162,63 @@ function Container({
 				borderColor: overId ? 'green' : 'black',
 			}}
 		/>
+	);
+}
+
+function MovableContainer({
+	id,
+	priority,
+	position: initialPosition,
+}: {
+	id: string;
+	priority: number;
+	position: Vector2;
+}) {
+	const [parentContainer, setParentContainer] = React.useState<string | null>(
+		null,
+	);
+	const [position, setPosition] = React.useState(() => initialPosition);
+
+	const canvasObject = useCreateObject({
+		id,
+		initialPosition: position,
+		containerId: parentContainer,
+		onDrag: (event) => {},
+		onDrop: (event) => {
+			if (event.container) {
+				setParentContainer(event.container.id);
+				setPosition(event.container.relativePosition);
+				console.log(
+					'drop on container',
+					event.worldPosition,
+					event.container.relativePosition,
+				);
+			} else {
+				setParentContainer(null);
+				setPosition(event.worldPosition);
+				console.log('drop on canvas', event.worldPosition);
+			}
+		},
+	});
+	const container = useCreateContainer({
+		id: `container-${id}`,
+		accept: (event) => event.objectId === '2',
+		priority,
+	});
+	const overId = useContainerOverObject(container);
+
+	return (
+		<Object className="containerFrame" value={canvasObject}>
+			<ObjectHandle className="containerFrameHandle" />
+			<ContainerArea
+				value={container}
+				className="container"
+				data-object-over={!!overId}
+				style={{
+					width: 200,
+					height: 200,
+				}}
+			/>
+		</Object>
 	);
 }

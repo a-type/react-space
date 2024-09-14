@@ -200,7 +200,13 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 	};
 
 	onObjectDragStart = (info: CanvasGestureInput) => {
-		this.emit('objectDragStart', this.transformGesture(info));
+		if (!info.targetId) return;
+		const gestureInfo = this.transformGesture(info);
+		const entry = this.bounds.get(info.targetId);
+		if (entry) {
+			this.updateContainer(info.targetId, entry as any, gestureInfo);
+		}
+		this.emit('objectDragStart', gestureInfo);
 	};
 	onObjectDrag = (info: CanvasGestureInput) => {
 		if (!info.targetId) return;
@@ -208,8 +214,8 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 		const entry = this.bounds.get(info.targetId);
 		if (entry) {
 			this.updateContainer(info.targetId, entry as any, gestureInfo);
-			// FIXME: messy. during drag object is positioned as if it doesn't have
-			// any parent.
+			// FIXME: kinda messy. required to position the bounds of the dragged
+			// object so that it's back in global space
 			entry.transform.parent.set(null);
 		}
 		this.emit('objectDrag', gestureInfo);
@@ -252,6 +258,7 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 		let winningContainer: BoundsRegistryEntry<ContainerData<Metadata>> | null =
 			null;
 		let winningContainerBounds: Box | null = null;
+
 		for (const entry of collisions) {
 			if (!entry) continue;
 			const containerBounds = entry.transform.bounds.value;

@@ -48,11 +48,6 @@ export function useCreateObject<Metadata = any>({
 	const { isDragging, isDraggingRef, startDragging, stopDragging } =
 		useDragging();
 
-	const [positionStyle, positionSpring] = useSpring(() => ({
-		...initialPosition,
-		config: SPRINGS.QUICK,
-	}));
-
 	const metadataRef = useRef(metadata);
 	metadataRef.current = metadata;
 	const entry = useSyncExternalStore(
@@ -81,29 +76,11 @@ export function useCreateObject<Metadata = any>({
 		});
 	}, [containerId, initialPosition, entry, canvas]);
 
-	useEffect(() => {
-		const unsub = react('update position spring', () => {
-			// if (isDraggingRef.current) {
-			positionSpring.set(entry.transform.origin.value);
-			// } else {
-			// 	positionSpring.start(entry.transform.origin.value);
-			// }
-		});
-
-		return () => {
-			unsub();
-		};
-	}, [entry, isDraggingRef, positionSpring]);
-
 	const move = useCallback(
 		(position: Vector2) => {
-			const entry = canvas.bounds.get(id);
-			if (!entry) {
-				throw new Error(`object ${id} not found in bounds`);
-			}
-			entry?.transform.position.set(position);
+			entry.transform.position.set(position);
 		},
-		[canvas, id],
+		[entry],
 	);
 
 	const pickupSpring = useSpring({
@@ -114,16 +91,13 @@ export function useCreateObject<Metadata = any>({
 	useObjectGestures(
 		{
 			onDragStart(info) {
-				if (vectorLength(info.distance) > 5) {
-					startDragging();
-				}
+				startDragging();
+				move(info.worldPosition);
 			},
 			onDrag(info) {
-				if (vectorLength(info.distance) > 5) {
-					startDragging();
-				}
-				onDrag?.(info);
+				startDragging();
 				move(info.worldPosition);
+				onDrag?.(info);
 			},
 			onDragEnd(info) {
 				stopDragging();
@@ -134,11 +108,11 @@ export function useCreateObject<Metadata = any>({
 	);
 
 	const style = {
-		transform: to(
-			[positionStyle.x, positionStyle.y, pickupSpring.value],
-			(x, y, grabEffect) =>
-				`translate(${x}px, ${y}px) scale(${1 + 0.05 * grabEffect})`,
-		),
+		// transform: to(
+		// 	[pickupSpring.value],
+		// 	(grabEffect) =>
+		// 		`translate(var(--x), var(--y)) scale(${1 + 0.05 * grabEffect})`,
+		// ),
 		cursor: isDragging ? 'grabbing' : 'inherit',
 	};
 

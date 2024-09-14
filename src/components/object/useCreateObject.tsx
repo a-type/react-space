@@ -9,7 +9,7 @@ import {
 import { Atom } from 'signia';
 import { useAtom } from 'signia-react';
 import { CanvasGestureInfo, ObjectData } from '../../logic/Canvas.js';
-import { Vector2 } from '../../types.js';
+import { Size, Vector2 } from '../../types.js';
 import { useObjectGestures } from '../canvas/canvasHooks.js';
 import { useCanvas } from '../canvas/CanvasProvider.js';
 import { CONTAINER_STATE } from './private.js';
@@ -30,6 +30,7 @@ export function useCreateObject<Metadata = any>({
 	id,
 	containerId = null,
 	initialPosition,
+	getOrigin,
 	metadata,
 	onDrag,
 	onDrop,
@@ -40,6 +41,7 @@ export function useCreateObject<Metadata = any>({
 	metadata?: Metadata;
 	onDrag?: (event: CanvasGestureInfo) => void;
 	onDrop?: (event: CanvasGestureInfo) => void;
+	getOrigin?: (position: Vector2, size: Size) => Vector2;
 }): CanvasObject<Metadata> {
 	const canvas = useCanvas();
 
@@ -59,6 +61,7 @@ export function useCreateObject<Metadata = any>({
 					id,
 					initialParent: containerId,
 					initialPosition,
+					getOrigin,
 				},
 				{ type: 'object', metadata: metadataRef },
 			) as BoundsRegistryEntry<ObjectData<Metadata>>,

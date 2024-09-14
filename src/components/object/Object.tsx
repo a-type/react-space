@@ -85,6 +85,8 @@ export const Object = function Object({
 
 	const containerState = value[CONTAINER_STATE].value;
 
+	// FIXME: this state is being set during invocation of register,
+	// because the transform parent is updated.
 	const parent = useValue(
 		'parent id',
 		() => entry.transform.parent.value?.id ?? null,

@@ -13,6 +13,7 @@ import {
 	DebugLayer,
 	Object,
 	ObjectHandle,
+	Size,
 	useCanvas,
 	useCreateCanvas,
 	useCreateViewport,
@@ -74,6 +75,15 @@ export const KitchenSink: Story = {
 						/>
 						<DemoNode id="1" initialPosition={{ x: 10, y: 30 }} />
 						<DemoNode id="2" initialPosition={{ x: 100, y: 100 }} />
+						<DemoNode
+							id="4"
+							initialPosition={{ x: 0, y: 0 }}
+							size={32}
+							getOrigin={(pos, size) => ({
+								x: pos.x - size.width / 2,
+								y: pos.y - size.height / 2,
+							})}
+						/>
 					</CanvasRoot>
 				</ViewportRoot>
 				<DebugLayer canvas={canvas} />
@@ -90,9 +100,13 @@ export const KitchenSink: Story = {
 function DemoNode({
 	id,
 	initialPosition,
+	size,
+	getOrigin,
 }: {
 	id: string;
 	initialPosition: Vector2;
+	size?: number;
+	getOrigin?: (position: Vector2, size: Size) => Vector2;
 }) {
 	const [container, setContainer] = React.useState<string | null>(null);
 	const [position, setPosition] = React.useState(() => initialPosition);
@@ -101,6 +115,7 @@ function DemoNode({
 		id,
 		initialPosition: position,
 		containerId: container,
+		getOrigin,
 		onDrag: (event) => {},
 		onDrop: (event) => {
 			if (event.container) {
@@ -130,7 +145,13 @@ function DemoNode({
 
 	return (
 		<Object className="node" value={canvasObject} onDoubleClick={zoomToFit}>
-			<ObjectHandle className="handle" />
+			<ObjectHandle
+				className="handle"
+				style={{
+					width: size,
+					height: size,
+				}}
+			/>
 		</Object>
 	);
 }

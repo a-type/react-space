@@ -306,7 +306,7 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 	 */
 	getViewportPosition = (objectId: string): Vector2 | null => {
 		const worldPosition =
-			this.bounds.get(objectId)?.transform.worldOrigin.value;
+			this.bounds.get(objectId)?.transform.worldPosition.value;
 		if (!worldPosition) return null;
 		return this.viewport.worldToViewport(worldPosition);
 	};

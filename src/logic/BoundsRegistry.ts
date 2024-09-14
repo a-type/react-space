@@ -33,7 +33,6 @@ export class BoundsRegistryEntry<TData extends BoundsEntryData> {
 	}
 
 	ref = (element: Element | null) => {
-		console.log(this.id, 'ref', element);
 		const prev = this.element;
 		this._element = element;
 		this.onElementChange(this.id, element, prev);

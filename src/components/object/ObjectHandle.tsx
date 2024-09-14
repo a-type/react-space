@@ -30,6 +30,7 @@ const baseStyle: CSSProperties = {
 
 export const ObjectHandle = track(function ObjectHandle({
 	disabled,
+	style: userStyle,
 	...rest
 }: ObjectHandleProps) {
 	const obj = useObject();
@@ -51,16 +52,14 @@ export const ObjectHandle = track(function ObjectHandle({
 	);
 
 	const dragging = useValue(obj.draggingSignal);
-	const style = useMemo(
-		() => ({
-			...baseStyle,
-			cursor:
-				disabled ? 'inherit'
-				: dragging ? 'grabbing'
-				: 'grab',
-		}),
-		[disabled, dragging],
-	);
+	const style = {
+		...baseStyle,
+		...userStyle,
+		cursor:
+			disabled ? 'inherit'
+			: dragging ? 'grabbing'
+			: 'grab',
+	};
 
 	return (
 		<div
@@ -118,6 +117,9 @@ function useDragHandle(disabled = false) {
 					);
 					canvas.gestureState.displacement = displacement;
 				}
+
+				// always cancel the gesture. the canvas will handle the rest.
+				state.cancel();
 			},
 		},
 		{

@@ -42,6 +42,11 @@ export class Transform {
 	 */
 	worldOrigin: Computed<Vector2>;
 	/**
+	 * A final computed property that represents the object's
+	 * position in the world.
+	 */
+	worldPosition: Computed<Vector2>;
+	/**
 	 * The world origin combined with size to form a bounding box.
 	 */
 	bounds: Computed<Box>;
@@ -82,6 +87,16 @@ export class Transform {
 				y: parentOrigin.y + origin.y,
 			};
 		});
+		this.worldPosition = computed(`${id} world position`, () => {
+			const parent = this.parent.value;
+			const position = this.position.value;
+			if (!parent) return position;
+			const parentOrigin = parent.worldOrigin.value;
+			return {
+				x: parentOrigin.x + position.x,
+				y: parentOrigin.y + position.y,
+			};
+		});
 		this.bounds = computed(`${id} bounds`, () => {
 			const origin = this.worldOrigin.value;
 			const size = this.size.value;
@@ -108,7 +123,9 @@ export class Transform {
 		if (init.initialPosition) this.position.set(init.initialPosition);
 		if (init.initialSize) this.size.set(init.initialSize);
 		if (init.initialParent !== undefined) this.parent.set(init.initialParent);
-		this.computeOrigin = init.getOrigin;
+		if (init.getOrigin) {
+			this.computeOrigin = init.getOrigin;
+		}
 	};
 
 	hasParent = (otherId: string): boolean => {

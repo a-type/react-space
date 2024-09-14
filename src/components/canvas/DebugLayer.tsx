@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import raf from 'raf';
 import { Canvas } from '../../logic/Canvas.js';
+import { addVectors } from '../../logic/math.js';
 
 export interface DebugLayerProps {
 	canvas: Canvas;
@@ -28,8 +29,7 @@ export function DebugLayer({ canvas: logicalCanvas }: DebugLayerProps) {
 			ctx.font = '12px monospace';
 
 			// crosshair at origin
-			ctx.strokeStyle = 'black';
-			ctx.setLineDash([5, 5]);
+			ctx.strokeStyle = 'white';
 			ctx.beginPath();
 			const origin = viewport.worldToViewport({ x: 0, y: 0 });
 			ctx.moveTo(origin.x, origin.y - 10);
@@ -38,6 +38,7 @@ export function DebugLayer({ canvas: logicalCanvas }: DebugLayerProps) {
 			ctx.lineTo(origin.x + 10, origin.y);
 			ctx.stroke();
 
+			ctx.setLineDash([5, 5]);
 			ctx.strokeStyle = 'red';
 			ctx.fillStyle = 'red';
 
@@ -59,6 +60,23 @@ export function DebugLayer({ canvas: logicalCanvas }: DebugLayerProps) {
 				// const size = entry.size.value;
 				ctx.strokeRect(origin.x, origin.y, size.width, size.height);
 				ctx.fillText(objectId, origin.x, origin.y);
+			}
+
+			ctx.setLineDash([]);
+			ctx.strokeStyle = 'black';
+			for (const objectId of logicalCanvas.bounds.ids) {
+				const entry = logicalCanvas.bounds.get(objectId);
+				if (!entry) continue;
+				// draw a 3x3 crosshair at world position
+				const position = viewport.worldToViewport(
+					entry.transform.worldPosition.value,
+				);
+				ctx.beginPath();
+				ctx.moveTo(position.x - 3, position.y);
+				ctx.lineTo(position.x + 3, position.y);
+				ctx.moveTo(position.x, position.y - 3);
+				ctx.lineTo(position.x, position.y + 3);
+				ctx.stroke();
 			}
 
 			// print viewport zoom level and center point in top left

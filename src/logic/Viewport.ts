@@ -544,8 +544,8 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 		zoomValue: number,
 		info: { origin?: ViewportEventOrigin; gestureComplete?: boolean } = {},
 	) => {
-		this.pan(worldPosition, info);
 		this.zoom(zoomValue, info);
+		this.pan(worldPosition, info);
 	};
 
 	/**

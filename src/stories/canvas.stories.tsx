@@ -34,7 +34,7 @@ export const KitchenSink: Story = {
 	render() {
 		const viewport = useCreateViewport({
 			zoomLimits: {
-				max: 1.5,
+				max: 3,
 				min: 'fit',
 			},
 			defaultCenter: { x: 0, y: 0 },
@@ -47,7 +47,7 @@ export const KitchenSink: Story = {
 				min: { x: -500, y: -500 },
 			},
 			viewport,
-			positionSnapIncrement: 24,
+			// positionSnapIncrement: 24,
 		});
 		// @ts-ignore
 		window.canvas = canvas;
@@ -67,13 +67,13 @@ export const KitchenSink: Story = {
 							priority={2}
 							position={{ x: -200, y: 100 }}
 						/>
-						<DemoNode id="1" initialPosition={{ x: 10, y: 30 }} />
-						<DemoNode id="2" initialPosition={{ x: 100, y: 100 }} />
 						<MovableContainer
 							id="3"
 							priority={3}
 							position={{ x: 200, y: 200 }}
 						/>
+						<DemoNode id="1" initialPosition={{ x: 10, y: 30 }} />
+						<DemoNode id="2" initialPosition={{ x: 100, y: 100 }} />
 					</CanvasRoot>
 				</ViewportRoot>
 				<DebugLayer canvas={canvas} />
@@ -149,17 +149,18 @@ function Container({
 		accept: (event) => event.objectId === '1',
 		priority,
 	});
-	const overId = useContainerOverObject(container);
+	const { objectId, accepted } = useContainerOverObject(container);
 
 	return (
 		<ContainerArea
 			value={container}
 			className="container"
+			data-object-over={!!objectId}
+			data-object-accepted={accepted}
 			style={{
 				position: 'absolute',
 				left: position.x,
 				top: position.y,
-				borderColor: overId ? 'green' : 'black',
 			}}
 		/>
 	);
@@ -202,10 +203,9 @@ function MovableContainer({
 	});
 	const container = useCreateContainer({
 		id: `container-${id}`,
-		accept: (event) => event.objectId === '2',
 		priority,
 	});
-	const overId = useContainerOverObject(container);
+	const { objectId, accepted } = useContainerOverObject(container);
 
 	return (
 		<Object className="containerFrame" value={canvasObject}>
@@ -213,7 +213,8 @@ function MovableContainer({
 			<ContainerArea
 				value={container}
 				className="container"
-				data-object-over={!!overId}
+				data-object-over={!!objectId}
+				data-object-accepted={accepted}
 				style={{
 					width: 200,
 					height: 200,

@@ -9,7 +9,7 @@ import {
 	useMemo,
 	useRef,
 } from 'react';
-import { track } from 'signia-react';
+import { track, useValue } from 'signia-react';
 import { AutoPan } from '../../logic/AutoPan.js';
 import { CanvasGestureInput } from '../../logic/Canvas.js';
 import { applyGestureState } from '../../logic/gestureUtils.js';
@@ -42,23 +42,24 @@ export const ObjectHandle = track(function ObjectHandle({
 	 */
 	const onClickCapture = useCallback(
 		(ev: React.MouseEvent) => {
-			if (obj.isDragging) {
+			if (obj.draggingSignal.value) {
 				ev.preventDefault();
 				ev.stopPropagation();
 			}
 		},
-		[obj.isDragging],
+		[obj],
 	);
 
+	const dragging = useValue(obj.draggingSignal);
 	const style = useMemo(
 		() => ({
 			...baseStyle,
 			cursor:
 				disabled ? 'inherit'
-				: obj.isDragging ? 'grabbing'
+				: dragging ? 'grabbing'
 				: 'grab',
 		}),
-		[disabled, obj.isDragging],
+		[disabled, dragging],
 	);
 
 	return (
@@ -94,77 +95,29 @@ function useDragHandle(disabled = false) {
 	const object = useObject();
 	const dragLocked = useDragLocked();
 
-	const [grabDisplacementRef, displace] = useDisplacement();
-	const gestureInputRef = useGestureInput(object.id);
-	const autoPan = useAutoPan(displace, gestureInputRef);
-
 	useGesture(
 		{
 			onDragStart: (state) => {
+				console.debug('drag start', object.id);
+				if (dragLocked) return;
+
 				if (isUnacceptableGesture(state.event)) {
-					state.cancel();
 					return;
 				}
+
 				// claim this gesture for this object
 				gestureState.claimedBy = object.id;
 
+				// set up displacement
 				const screenPosition = { x: state.xy[0], y: state.xy[1] };
-				autoPan.update(screenPosition);
-
 				const currentObjectPosition = canvas.getViewportPosition(object.id);
 				if (currentObjectPosition) {
 					const displacement = subtractVectors(
 						currentObjectPosition,
 						screenPosition,
 					);
-					grabDisplacementRef.current.x = displacement.x;
-					grabDisplacementRef.current.y = displacement.y;
+					canvas.gestureState.displacement = displacement;
 				}
-
-				applyGestureState(gestureInputRef.current, state);
-				gestureInputRef.current.screenPosition = displace(screenPosition);
-
-				canvas.onObjectDragStart(gestureInputRef.current);
-			},
-			onDrag: (state) => {
-				if (
-					isUnacceptableGesture(state.event) ||
-					gestureState.claimedBy !== object.id
-				) {
-					state.cancel();
-					return;
-				}
-
-				const screenPosition = { x: state.xy[0], y: state.xy[1] };
-				autoPan.update(screenPosition);
-
-				applyGestureState(gestureInputRef.current, state);
-				gestureInputRef.current.screenPosition = displace(screenPosition);
-				canvas.onObjectDrag(gestureInputRef.current);
-			},
-			onDragEnd: (state) => {
-				if (
-					isUnacceptableGesture(state.event) ||
-					gestureState.claimedBy !== object.id
-				) {
-					state.cancel();
-					return;
-				}
-
-				// don't claim taps. let parents handle them.
-				if (state.tap) {
-					console.debug(`${object.id} is abandoning claim on tap gesture`);
-					gestureState.claimedBy = null;
-					state.cancel();
-					return;
-				}
-
-				const screenPosition = { x: state.xy[0], y: state.xy[1] };
-				autoPan.update(screenPosition);
-
-				applyGestureState(gestureInputRef.current, state);
-				gestureInputRef.current.screenPosition = displace(screenPosition);
-				canvas.onObjectDragEnd(gestureInputRef.current);
 			},
 		},
 		{

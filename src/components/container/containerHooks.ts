@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { Box } from '../../types.js';
 import { CanvasGestureInfo } from '../../logic/Canvas.js';
 import { useCanvas } from '../canvas/CanvasProvider.js';
+import { useAtom, useValue } from 'signia-react';
+import { Atom } from 'signia';
 
 export interface ContainmentEvent<Metadata> {
 	objectId: string;
@@ -13,46 +15,33 @@ export interface ContainmentEvent<Metadata> {
 
 export interface ContainerConfig {
 	id: string;
-	accept: (containmentEvent: ContainmentEvent<any>) => boolean;
+	accept?: (containmentEvent: ContainmentEvent<any>) => boolean;
 	priority?: number;
 }
 
 export interface Container {
-	accepts: (containmentEvent: ContainmentEvent<any>) => boolean;
+	accepts?: (containmentEvent: ContainmentEvent<any>) => boolean;
 	id: string;
 	priority: number;
+	overState: Atom<{ objectId: string | null; accepted: boolean }>;
 }
 
 export function useCreateContainer(config: ContainerConfig): Container {
+	const overState = useAtom('container over state', {
+		objectId: null as string | null,
+		accepted: false,
+	});
 	const [value] = useState(() => ({
 		accepts: config.accept,
 		id: config.id,
 		priority: config.priority ?? 0,
+		overState,
 	}));
 	return value;
 }
 
 export function useContainerOverObject(container: Container) {
-	const canvas = useCanvas();
-	const [overObjectId, setOverObjectId] = useState<string | null>(null);
-	useEffect(() => {
-		const unsubOver = canvas.subscribe(
-			'containerObjectOver',
-			(containerId, objectId) => {
-				if (containerId === container.id) {
-					setOverObjectId(objectId);
-				}
-			},
-		);
-		const unsubOut = canvas.subscribe('containerObjectOut', (containerId) => {
-			setOverObjectId(null);
-		});
-		return () => {
-			unsubOver();
-			unsubOut();
-		};
-	}, [canvas, container.id]);
-	return overObjectId;
+	return useValue(container.overState);
 }
 
 const containerContext = createContext<Container | null>(null);

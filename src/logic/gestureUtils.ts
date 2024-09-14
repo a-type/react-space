@@ -1,5 +1,6 @@
 import { CommonGestureState, SharedGestureState } from '@use-gesture/react';
 import { CanvasGestureInput } from './Canvas.js';
+import { Vector2 } from '../types.js';
 
 type GestureState = CommonGestureState &
 	SharedGestureState & { xy: [number, number] };
@@ -19,6 +20,7 @@ export function gestureStateToInput(state: GestureState): CanvasGestureInput {
 export function applyGestureState(
 	input: CanvasGestureInput,
 	state: GestureState,
+	canvasGestureState: { displacement: Vector2 },
 ) {
 	input.alt = state.altKey;
 	input.ctrlOrMeta = state.ctrlKey || state.metaKey;
@@ -27,8 +29,12 @@ export function applyGestureState(
 	input.delta.y = state.delta[1];
 	input.distance.x = state.offset[0];
 	input.distance.y = state.offset[1];
-	input.screenPosition.x = state.xy[0];
-	input.screenPosition.y = state.xy[1];
+	input.screenPosition.x = Math.round(
+		state.xy[0] + canvasGestureState.displacement.x,
+	);
+	input.screenPosition.y = Math.round(
+		state.xy[1] + canvasGestureState.displacement.y,
+	);
 }
 
 export function isTouchEvent(event: Event) {

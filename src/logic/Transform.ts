@@ -10,6 +10,7 @@ export interface TransformInit {
 }
 
 export class Transform {
+	readonly id: string;
 	/**
 	 * Position is a user-settable property that represents the
 	 * object's relative position to its parent container.
@@ -60,6 +61,7 @@ export class Transform {
 		initialParent = null,
 		id,
 	}: TransformInit) {
+		this.id = id;
 		this.position = atom(`${id} position`, initialPosition);
 		this.size = atom(`${id} size`, initialSize);
 		this.parent = atom(`${id} parent`, initialParent);
@@ -100,9 +102,19 @@ export class Transform {
 	}
 
 	apply = (init: TransformInit) => {
+		if (init.initialParent === this) {
+			throw new Error(`Cannot set parent of ${this.id} to self`);
+		}
 		if (init.initialPosition) this.position.set(init.initialPosition);
 		if (init.initialSize) this.size.set(init.initialSize);
 		if (init.initialParent !== undefined) this.parent.set(init.initialParent);
 		this.computeOrigin = init.getOrigin;
+	};
+
+	hasParent = (otherId: string): boolean => {
+		const parent = this.parent.value;
+		if (!parent) return false;
+		if (parent.id === otherId) return true;
+		return parent.hasParent(otherId);
 	};
 }

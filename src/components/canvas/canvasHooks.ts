@@ -8,6 +8,7 @@ import {
 } from '../../logic/Canvas.js';
 import { useCanvas } from './CanvasProvider.js';
 import { BoundsRegistryEntry } from '../../logic/BoundsRegistry.js';
+import { CanvasObject } from '../object/useCreateObject.js';
 
 export function useObjectEntry(objectId: string) {
 	const canvas = useCanvas();
@@ -21,6 +22,29 @@ export function useObjectEntry(objectId: string) {
 				ObjectData<any>
 			> | null,
 	);
+}
+
+/**
+ * Forces registration of entry from an object.
+ */
+export function useDefiniteObjectEntry(object: CanvasObject) {
+	const canvas = useCanvas();
+	const entry = useSyncExternalStore(
+		(cb) =>
+			canvas.bounds.subscribe('entryReplaced', (objId) => {
+				if (object.id === objId) cb();
+			}),
+		() =>
+			canvas.bounds.register(
+				object.id,
+				{
+					id: object.id,
+					initialParent: object.containerId,
+				},
+				{ type: 'object', metadata: object.metadataRef },
+			) as BoundsRegistryEntry<ObjectData<any>>,
+	);
+	return entry;
 }
 
 export function useContainerEntry(containerId: string) {

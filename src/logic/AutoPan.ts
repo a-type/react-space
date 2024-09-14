@@ -1,4 +1,5 @@
 import { Vector2 } from '../types.js';
+import { Vector2 as GestureVector2 } from '@use-gesture/react';
 import raf, { cancel } from 'raf';
 import { vectorLength, multiplyVector } from './math.js';
 import { Viewport } from './Viewport.js';
@@ -40,8 +41,17 @@ export class AutoPan extends EventSubscriber<{
 	 * sets a new cursor position to calculate from, use this whenever
 	 * the cursor moves.
 	 */
-	update = (cursorPosition: Vector2) => {
-		this.cursorPosition = cursorPosition;
+	update = (cursorPosition: Vector2 | GestureVector2) => {
+		if (!this.cursorPosition) {
+			this.cursorPosition = { x: 0, y: 0 };
+		}
+		if (Array.isArray(cursorPosition)) {
+			this.cursorPosition.x = cursorPosition[0];
+			this.cursorPosition.y = cursorPosition[1];
+		} else {
+			this.cursorPosition.x = cursorPosition.x;
+			this.cursorPosition.y = cursorPosition.y;
+		}
 	};
 
 	/** cancels the update loop, should be called at the end of a drag */

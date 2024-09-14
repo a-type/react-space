@@ -75,7 +75,8 @@ export type ObjectData<Metadata> = {
 export type ContainerData<Metadata> = {
 	type: 'container';
 	priority: number;
-	accepts: (containmentEvent: ObjectContainmentEvent<Metadata>) => boolean;
+	accepts?: (containmentEvent: ObjectContainmentEvent<Metadata>) => boolean;
+	overState: Atom<{ objectId: string | null; accepted: boolean }>;
 };
 
 export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
@@ -98,7 +99,8 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 	});
 
 	readonly gestureState = {
-		containerCandidate: null as string | null,
+		displacement: { x: 0, y: 0 },
+		containerCandidate: null as BoundsRegistryEntry<ContainerData<any>> | null,
 	};
 
 	private _positionSnapIncrement = 1;
@@ -181,10 +183,6 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 		});
 	};
 
-	resetGestureState = () => {
-		this.gestureState.containerCandidate = null;
-	};
-
 	onCanvasTap = (info: CanvasGestureInput) => {
 		this.emit('canvasTap', this.transformGesture(info));
 	};
@@ -230,11 +228,11 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 			if (entry) {
 				this.updateContainer(info.targetId, entry as any, gestureInfo);
 			}
-			this.emit(
-				'containerObjectOut',
-				this.gestureState.containerCandidate,
-				info.targetId,
-			);
+			this.gestureState.containerCandidate?.data.overState.set({
+				objectId: null,
+				accepted: false,
+			});
+			this.gestureState.containerCandidate = null;
 		}
 		this.emit('objectDragEnd', gestureInfo);
 	};
@@ -254,54 +252,51 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 			0.3,
 			(data) => data.type === 'container',
 		);
-		let candidatePriority = -1;
-		let winningContainer: BoundsRegistryEntry<ContainerData<Metadata>> | null =
-			null;
-		let winningContainerBounds: Box | null = null;
 
-		for (const entry of collisions) {
-			if (!entry) continue;
-			const containerBounds = entry.transform.bounds.value;
-			if (!containerBounds) continue;
-			const containmentEvent: ObjectContainmentEvent<Metadata> = {
+		// don't allow objects to be contained by their children
+		const allowedCollisions = collisions.filter(
+			(c) => !c.transform.hasParent(objectId),
+		);
+		const winningContainer = allowedCollisions
+			.sort((a, b) => a.data.priority - b.data.priority)
+			.pop();
+
+		const accepted =
+			!winningContainer?.data.accepts ||
+			winningContainer.data.accepts({
 				objectId,
 				objectMetadata: metadata ?? undefined,
 				objectBounds: entry.transform.bounds.value,
-				ownBounds: containerBounds,
+				ownBounds: winningContainer.transform.bounds.value,
 				gestureInfo: info,
-			};
-			if (
-				entry.data.accepts(containmentEvent) &&
-				(entry.data.priority || 0) > candidatePriority
-			) {
-				winningContainer = entry;
-				winningContainerBounds = containerBounds;
-				candidatePriority = entry.data.priority || 0;
-			}
-		}
-		if (winningContainer !== this.gestureState.containerCandidate) {
+			});
+
+		if (winningContainer?.id !== this.gestureState.containerCandidate?.id) {
 			if (this.gestureState.containerCandidate) {
-				this.emit(
-					'containerObjectOut',
-					this.gestureState.containerCandidate,
-					objectId,
-				);
+				this.gestureState.containerCandidate.data.overState.set({
+					objectId: null,
+					accepted: false,
+				});
 			}
 			if (winningContainer) {
-				this.emit('containerObjectOver', winningContainer.id, objectId);
+				winningContainer.data.overState.set({
+					objectId,
+					accepted,
+				});
 			}
-			this.gestureState.containerCandidate = winningContainer?.id ?? null;
+			this.gestureState.containerCandidate = winningContainer ?? null;
 		}
-		if (winningContainer) {
+		if (winningContainer && accepted) {
 			info.container = {
-				id: winningContainer?.id,
-				relativePosition:
-					winningContainerBounds ?
-						{
-							x: entry.transform.bounds.value.x - winningContainerBounds.x,
-							y: entry.transform.bounds.value.y - winningContainerBounds.y,
-						}
-					:	{ x: 0, y: 0 },
+				id: winningContainer.id,
+				relativePosition: {
+					x:
+						entry.transform.bounds.value.x -
+						winningContainer.transform.worldOrigin.value.x,
+					y:
+						entry.transform.bounds.value.y -
+						winningContainer.transform.worldOrigin.value.y,
+				},
 			};
 		}
 	};

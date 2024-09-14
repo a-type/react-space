@@ -32,8 +32,11 @@
 	border: 1px solid black;
 	overflow: hidden;
 }
-.container[data-object-over='true'] {
+.container[data-object-over='true'][data-object-accepted='true'] {
 	background-color: palegreen;
+}
+.container[data-object-over='true'][data-object-accepted='false'] {
+	background-color: lightcoral;
 }
 
 .controls {

@@ -32,6 +32,7 @@ export function ContainerArea({ value, ...rest }: ContainerAreaProps) {
 					type: 'container',
 					accepts: value.accepts,
 					priority: value.priority,
+					overState: value.overState,
 				},
 			),
 	);

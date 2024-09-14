@@ -1,30 +1,28 @@
-import { to, useSpring } from '@react-spring/web';
 import {
 	Ref,
+	RefObject,
 	useCallback,
 	useEffect,
 	useRef,
-	useState,
 	useSyncExternalStore,
 } from 'react';
-import { Atom, react } from 'signia';
+import { Atom } from 'signia';
 import { useAtom } from 'signia-react';
-import { SPRINGS } from '../../constants.js';
-import { CanvasGestureInfo } from '../../logic/Canvas.js';
-import { vectorLength } from '../../logic/math.js';
+import { CanvasGestureInfo, ObjectData } from '../../logic/Canvas.js';
 import { Vector2 } from '../../types.js';
 import { useObjectGestures } from '../canvas/canvasHooks.js';
 import { useCanvas } from '../canvas/CanvasProvider.js';
 import { CONTAINER_STATE } from './private.js';
-import { useMaybeContainer } from '../container/containerHooks.js';
+import { BoundsRegistryEntry } from '../../logic/BoundsRegistry.js';
 
-export interface CanvasObject {
+export interface CanvasObject<Metadata = any> {
 	id: string;
 	ref: Ref<HTMLDivElement>;
-	style: any;
 	containerId: string | null;
-	isDragging: boolean;
+	draggingSignal: Atom<boolean>;
 	move: (position: Vector2) => void;
+	metadataRef: RefObject<Metadata | undefined>;
+	entry: BoundsRegistryEntry<ObjectData<Metadata>>;
 	[CONTAINER_STATE]: Atom<{ overId: string | null }>;
 }
 
@@ -42,11 +40,10 @@ export function useCreateObject<Metadata = any>({
 	metadata?: Metadata;
 	onDrag?: (event: CanvasGestureInfo) => void;
 	onDrop?: (event: CanvasGestureInfo) => void;
-}): CanvasObject {
+}): CanvasObject<Metadata> {
 	const canvas = useCanvas();
 
-	const { isDragging, isDraggingRef, startDragging, stopDragging } =
-		useDragging();
+	const draggingSignal = useAtom(`${id} dragging signal`, false);
 
 	const metadataRef = useRef(metadata);
 	metadataRef.current = metadata;
@@ -64,7 +61,7 @@ export function useCreateObject<Metadata = any>({
 					initialPosition,
 				},
 				{ type: 'object', metadata: metadataRef },
-			),
+			) as BoundsRegistryEntry<ObjectData<Metadata>>,
 	);
 
 	useEffect(() => {
@@ -83,74 +80,34 @@ export function useCreateObject<Metadata = any>({
 		[entry],
 	);
 
-	const pickupSpring = useSpring({
-		value: isDragging ? 1 : 0,
-		config: SPRINGS.WOBBLY,
-	});
-
 	useObjectGestures(
 		{
 			onDragStart(info) {
-				startDragging();
+				draggingSignal.set(true);
 				move(info.worldPosition);
 			},
 			onDrag(info) {
-				startDragging();
 				move(info.worldPosition);
 				onDrag?.(info);
 			},
 			onDragEnd(info) {
-				stopDragging();
+				draggingSignal.set(false);
 				onDrop?.(info);
 			},
 		},
 		id,
 	);
 
-	const style = {
-		// transform: to(
-		// 	[pickupSpring.value],
-		// 	(grabEffect) =>
-		// 		`translate(var(--x), var(--y)) scale(${1 + 0.05 * grabEffect})`,
-		// ),
-		cursor: isDragging ? 'grabbing' : 'inherit',
-	};
-
 	const containerState = useAtom(`${id}: container state`, { overId: null });
 
 	return {
 		id,
 		ref: entry.ref,
-		style,
 		containerId,
-		isDragging,
+		draggingSignal,
+		metadataRef,
+		entry,
 		move,
 		[CONTAINER_STATE]: containerState,
-	};
-}
-
-function useDragging() {
-	const [isDragging, setIsDragging] = useState(false);
-	const isDraggingRef = useRef(isDragging);
-	const startDragging = useCallback(() => {
-		isDraggingRef.current = true;
-		setIsDragging(true);
-	}, []);
-	const stopDragging = useCallback(() => {
-		isDraggingRef.current = false;
-		// we leave this flag on for a few ms - the "drag" gesture
-		// basically has a fade-out effect where it continues to
-		// block gestures internal to the drag handle for a bit even
-		// after releasing
-		// FIXME: avoid race condition / concurrency problem here by
-		// using a debounced value?
-		setTimeout(setIsDragging, 100, false);
-	}, []);
-
-	return {
-		isDragging,
-		isDraggingRef,
-		startDragging,
-		stopDragging,
 	};
 }

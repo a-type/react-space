@@ -2,7 +2,6 @@ import {
 	createContext,
 	CSSProperties,
 	HTMLAttributes,
-	ReactNode,
 	useContext,
 	useRef,
 } from 'react';
@@ -11,16 +10,17 @@ import { useRerasterize } from '../../logic/rerasterizeSignal.js';
 import { useMergedRef } from '../../hooks.js';
 import { useGesture } from '@use-gesture/react';
 import { useCanvas } from '../canvas/CanvasProvider.js';
-import { CanvasGestureInfo } from '../../logic/Canvas.js';
+import { CanvasGestureInfo, ObjectData } from '../../logic/Canvas.js';
 import { ContainerPortal } from '../container/ContainerPortal.js';
-import { animated } from '@react-spring/web';
-import { track } from 'signia-react';
+import { track, useComputed, useValue } from 'signia-react';
 import { CONTAINER_STATE } from './private.js';
-import { ObjectDragImpostor } from './ObjectDragImpostor.js';
 import { gestureState } from '../gestures/useGestureState.js';
+import { useDefiniteObjectEntry } from '../canvas/canvasHooks.js';
+import { useLiveElementPosition } from './signalHooks.js';
+import { BoundsRegistryEntry } from '../../logic/BoundsRegistry.js';
 
 export interface ObjectProps extends HTMLAttributes<HTMLDivElement> {
-	value: CanvasObject;
+	value: CanvasObject<any>;
 	onTap?: (info: CanvasGestureInfo) => void;
 }
 
@@ -29,7 +29,7 @@ const baseStyle: CSSProperties = {
 	touchAction: 'none',
 };
 
-export const Object = track(function Object({
+export const Object = function Object({
 	value,
 	onTap,
 	children,
@@ -38,8 +38,10 @@ export const Object = track(function Object({
 }: ObjectProps) {
 	const ref = useRef<HTMLDivElement>(null);
 	useRerasterize(ref);
-	const finalRef = useMergedRef(ref, value.ref);
+
 	const canvas = useCanvas();
+	const entry = value.entry;
+
 	const bind = useGesture({
 		onDragEnd: (state) => {
 			if (state.tap) {
@@ -71,40 +73,48 @@ export const Object = track(function Object({
 	const style: CSSProperties = {
 		...baseStyle,
 		...userStyle,
-		...value.style,
 	};
+
+	const positionProps = useObjectRenderedPosition(value, entry);
+
+	const finalRef = useMergedRef<HTMLDivElement>(
+		ref,
+		value.ref,
+		positionProps.ref,
+	);
 
 	const containerState = value[CONTAINER_STATE].value;
 
+	const parent = useValue(
+		'parent id',
+		() => entry.transform.parent.value?.id ?? null,
+		[entry],
+	);
+
 	return (
-		<ContainerPortal containerId={value.containerId}>
+		<ContainerPortal
+			containerId={parent}
+			// disabledSignal={value.draggingSignal}
+		>
 			<ObjectContext.Provider value={value}>
-				{/*
-				TODO: this strategy isn't working. double rendering
-				children is causing unwanted side-effects.
-				*/}
-				<ObjectDragImpostor externalRealRef={finalRef}>
-					{({ style: renderStyle, ref }) => (
-						<div
-							ref={ref}
-							style={{
-								...style,
-								...renderStyle,
-							}}
-							{...bind()}
-							{...rest}
-							data-object-over={!!containerState.overId}
-						>
-							{children}
-						</div>
-					)}
-				</ObjectDragImpostor>
+				<div
+					ref={finalRef}
+					style={{
+						...style,
+						...positionProps.style,
+					}}
+					{...bind()}
+					{...rest}
+					data-object-over={!!containerState.overId}
+				>
+					{children}
+				</div>
 			</ObjectContext.Provider>
 		</ContainerPortal>
 	);
-});
+};
 
-const ObjectContext = createContext<CanvasObject | null>(null);
+const ObjectContext = createContext<CanvasObject<any> | null>(null);
 
 export function useObject() {
 	const val = useContext(ObjectContext);
@@ -116,4 +126,26 @@ export function useObject() {
 
 export function useMaybeObject() {
 	return useContext(ObjectContext);
+}
+
+function useObjectRenderedPosition(
+	object: CanvasObject,
+	entry: BoundsRegistryEntry<ObjectData<any>>,
+) {
+	const renderedPosition = useComputed(
+		`object ${object.id} rendered position`,
+		() => {
+			const dragging = object.draggingSignal.value;
+			const origin = entry?.transform.origin.value;
+			const worldOrigin = entry?.transform.worldOrigin.value;
+
+			if (dragging) {
+				return worldOrigin;
+			}
+			return origin;
+		},
+		[object, entry],
+	);
+
+	return useLiveElementPosition<HTMLDivElement>(renderedPosition);
 }

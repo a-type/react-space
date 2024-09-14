@@ -94,10 +94,7 @@ export const Object = function Object({
 	);
 
 	return (
-		<ContainerPortal
-			containerId={parent}
-			// disabledSignal={value.draggingSignal}
-		>
+		<ContainerPortal containerId={parent}>
 			<ObjectContext.Provider value={value}>
 				<div
 					ref={finalRef}

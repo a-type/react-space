@@ -1,18 +1,18 @@
 import { isMiddleClick, isRightClick, stopPropagation } from '@a-type/utils';
-import { useGesture } from '@use-gesture/react';
+import { useDrag } from '@use-gesture/react';
 import {
 	CSSProperties,
 	HTMLAttributes,
 	MutableRefObject,
 	useCallback,
 	useEffect,
+	useLayoutEffect,
 	useMemo,
 	useRef,
 } from 'react';
 import { track, useValue } from 'signia-react';
 import { AutoPan } from '../../logic/AutoPan.js';
 import { CanvasGestureInput } from '../../logic/Canvas.js';
-import { applyGestureState } from '../../logic/gestureUtils.js';
 import { addVectors, roundVector, subtractVectors } from '../../logic/math.js';
 import { Vector2 } from '../../types.js';
 import { useDragLocked } from '../canvas/canvasHooks.js';
@@ -94,91 +94,40 @@ function useDragHandle(disabled = false) {
 	const object = useObject();
 	const dragLocked = useDragLocked();
 
-	useGesture(
-		{
-			onDragStart: (state) => {
-				console.debug('drag start', object.id);
-				if (dragLocked) return;
+	useEffect(() => {
+		const element = ref.current;
+		if (!element) return;
 
-				if (isUnacceptableGesture(state.event)) {
-					return;
-				}
+		function onPointerDown(event: PointerEvent) {
+			event.preventDefault();
 
-				// claim this gesture for this object
-				gestureState.claimedBy = object.id;
+			if (dragLocked || disabled) return;
 
-				// set up displacement
-				const screenPosition = { x: state.xy[0], y: state.xy[1] };
-				const currentObjectPosition = canvas.getViewportPosition(object.id);
-				if (currentObjectPosition) {
-					const displacement = subtractVectors(
-						currentObjectPosition,
-						screenPosition,
-					);
-					canvas.gestureState.displacement = displacement;
-				}
+			if (isUnacceptableGesture(event)) {
+				return;
+			}
 
-				// always cancel the gesture. the canvas will handle the rest.
-				state.cancel();
-			},
-		},
-		{
-			drag: {
-				preventDefault: true,
-				eventOptions: {
-					passive: false,
-				},
-			},
-			enabled: !dragLocked && !disabled,
-			target: ref,
-		},
-	);
+			// claim this gesture for this object
+			gestureState.claimedBy = object.id;
+
+			// set up displacement
+			const screenPosition = { x: event.clientX, y: event.clientY };
+			const currentObjectPosition = canvas.getViewportPosition(object.id);
+			if (currentObjectPosition) {
+				const displacement = subtractVectors(
+					currentObjectPosition,
+					screenPosition,
+				);
+				canvas.gestureState.displacement = displacement;
+			}
+		}
+		element.addEventListener('pointerdown', onPointerDown);
+		return () => {
+			element.removeEventListener('pointerdown', onPointerDown);
+		};
+	}, [ref, disabled, dragLocked]);
 
 	return ref;
-}
-
-function useDisplacement() {
-	const grabDisplacementRef = useRef<Vector2>({ x: 0, y: 0 });
-	const displace = useCallback((screenPosition: Vector2) => {
-		// FIXME: multiple allocations here
-		return roundVector(addVectors(screenPosition, grabDisplacementRef.current));
-	}, []);
-
-	return [grabDisplacementRef, displace] as const;
-}
-
-function useGestureInput(id: string) {
-	return useRef<CanvasGestureInput>({
-		alt: false,
-		shift: false,
-		ctrlOrMeta: false,
-		intentional: false,
-		screenPosition: { x: 0, y: 0 },
-		delta: { x: 0, y: 0 },
-		distance: { x: 0, y: 0 },
-		targetId: id,
-	});
-}
-
-function useAutoPan(
-	displace: (screenPosition: Vector2) => Vector2,
-	gestureInputRef: MutableRefObject<CanvasGestureInput>,
-) {
-	const canvas = useCanvas();
-	const autoPan = useMemo(
-		() => new AutoPan(canvas.viewport),
-		[canvas.viewport],
-	);
-
-	useEffect(() => {
-		return autoPan.subscribe('pan', ({ cursorPosition }) => {
-			if (!cursorPosition) return;
-			gestureInputRef.current.screenPosition = displace(cursorPosition);
-			canvas.onObjectDrag(gestureInputRef.current);
-		});
-	}, [autoPan, canvas, displace, gestureInputRef]);
-
-	return autoPan;
 }
 
 function isUnacceptableGesture(event: PointerEvent | Event) {

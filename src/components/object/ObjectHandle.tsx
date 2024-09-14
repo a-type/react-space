@@ -43,7 +43,7 @@ export const ObjectHandle = track(function ObjectHandle({
 	 */
 	const onClickCapture = useCallback(
 		(ev: React.MouseEvent) => {
-			if (obj.draggingSignal.value) {
+			if (obj.blockInteractionSignal.value) {
 				ev.preventDefault();
 				ev.stopPropagation();
 			}

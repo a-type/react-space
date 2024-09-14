@@ -2,6 +2,7 @@ export * from './components/BoxRegion.js';
 export * from './components/BoxSelect.js';
 export * from './components/object/Object.js';
 export * from './components/object/ObjectHandle.js';
+export * from './components/object/NonDraggable.js';
 export * from './components/container/ContainerArea.js';
 export * from './components/object/signalHooks.js';
 export * from './components/canvas/CanvasOverlay.js';

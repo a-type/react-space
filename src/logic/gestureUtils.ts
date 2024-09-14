@@ -27,8 +27,8 @@ export function applyGestureState(
 	input.shift = state.shiftKey;
 	input.delta.x = state.delta[0];
 	input.delta.y = state.delta[1];
-	input.distance.x = state.offset[0];
-	input.distance.y = state.offset[1];
+	input.distance.x = state.movement[0];
+	input.distance.y = state.movement[1];
 	input.screenPosition.x = Math.round(
 		state.xy[0] + canvasGestureState.displacement.x,
 	);

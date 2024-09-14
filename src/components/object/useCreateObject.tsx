@@ -14,12 +14,14 @@ import { useObjectGestures } from '../canvas/canvasHooks.js';
 import { useCanvas } from '../canvas/CanvasProvider.js';
 import { CONTAINER_STATE } from './private.js';
 import { BoundsRegistryEntry } from '../../logic/BoundsRegistry.js';
+import { vectorLength } from '../../logic/math.js';
 
 export interface CanvasObject<Metadata = any> {
 	id: string;
 	ref: Ref<HTMLDivElement>;
 	containerId: string | null;
 	draggingSignal: Atom<boolean>;
+	blockInteractionSignal: Atom<boolean>;
 	move: (position: Vector2) => void;
 	metadataRef: RefObject<Metadata | undefined>;
 	entry: BoundsRegistryEntry<ObjectData<Metadata>>;
@@ -46,6 +48,10 @@ export function useCreateObject<Metadata = any>({
 	const canvas = useCanvas();
 
 	const draggingSignal = useAtom(`${id} dragging signal`, false);
+	const blockInteractionSignal = useAtom(
+		`${id} block interaction signal`,
+		false,
+	);
 
 	const metadataRef = useRef(metadata);
 	metadataRef.current = metadata;
@@ -91,10 +97,19 @@ export function useCreateObject<Metadata = any>({
 			},
 			onDrag(info) {
 				move(info.worldPosition);
+				if (vectorLength(info.distance) > 5) {
+					console.log('block interaction');
+					blockInteractionSignal.set(true);
+				}
 				onDrag?.(info);
 			},
 			onDragEnd(info) {
 				draggingSignal.set(false);
+				// wait a moment longer to unblock interaction
+				setTimeout(() => {
+					console.log('release interaction');
+					blockInteractionSignal.set(false);
+				}, 100);
 				onDrop?.(info);
 			},
 		},
@@ -108,6 +123,7 @@ export function useCreateObject<Metadata = any>({
 		ref: entry.ref,
 		containerId,
 		draggingSignal,
+		blockInteractionSignal,
 		metadataRef,
 		entry,
 		move,

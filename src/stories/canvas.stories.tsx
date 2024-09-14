@@ -11,6 +11,7 @@ import {
 	CanvasWallpaper,
 	ContainerArea,
 	DebugLayer,
+	NonDraggable,
 	Object,
 	ObjectHandle,
 	Size,
@@ -74,7 +75,14 @@ export const KitchenSink: Story = {
 							position={{ x: 200, y: 200 }}
 						/>
 						<DemoNode id="1" initialPosition={{ x: 10, y: 30 }} />
-						<DemoNode id="2" initialPosition={{ x: 100, y: 100 }} />
+						<DemoNode id="2" initialPosition={{ x: 100, y: 100 }}>
+							<button
+								style={{ margin: 'auto' }}
+								onClick={() => alert('clicked')}
+							>
+								Click me
+							</button>
+						</DemoNode>
 						<DemoNode
 							id="4"
 							initialPosition={{ x: 0, y: 0 }}
@@ -102,11 +110,13 @@ function DemoNode({
 	initialPosition,
 	size,
 	getOrigin,
+	children,
 }: {
 	id: string;
 	initialPosition: Vector2;
 	size?: number;
 	getOrigin?: (position: Vector2, size: Size) => Vector2;
+	children?: React.ReactNode;
 }) {
 	const [container, setContainer] = React.useState<string | null>(null);
 	const [position, setPosition] = React.useState(() => initialPosition);
@@ -151,7 +161,9 @@ function DemoNode({
 					width: size,
 					height: size,
 				}}
-			/>
+			>
+				{children}
+			</ObjectHandle>
 		</Object>
 	);
 }

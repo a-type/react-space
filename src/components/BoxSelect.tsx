@@ -16,6 +16,7 @@ export function BoxSelect({ className, onCommit }: BoxSelectProps) {
 				canvas.selections.setPending(objectIds);
 			}}
 			onEnd={(objectIds, info) => {
+				console.log('box select end', objectIds);
 				if (info.shift) {
 					canvas.selections.addAll(objectIds);
 				} else {

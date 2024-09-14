@@ -109,6 +109,7 @@ function useDragHandle(disabled = false) {
 
 			// claim this gesture for this object
 			gestureState.claimedBy = object.id;
+			gestureState.claimType = 'object';
 
 			// set up displacement
 			const screenPosition = { x: event.clientX, y: event.clientY };
@@ -125,7 +126,7 @@ function useDragHandle(disabled = false) {
 		return () => {
 			element.removeEventListener('pointerdown', onPointerDown);
 		};
-	}, [ref, disabled, dragLocked]);
+	}, [ref, disabled, dragLocked, object.id, canvas]);
 
 	return ref;
 }

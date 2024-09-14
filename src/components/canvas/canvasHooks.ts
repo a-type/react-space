@@ -158,6 +158,7 @@ export function useObjectGestures(
 	}, [canvas, objectId]);
 }
 
+// TODO: convert to useSyncExternalStore
 export function useIsSelected(objectId: string) {
 	const canvas = useCanvas();
 	const [selected, setSelected] = useState(() =>
@@ -168,6 +169,9 @@ export function useIsSelected(objectId: string) {
 			canvas.selections.selectedIds.has(objectId) &&
 			canvas.selections.selectedIds.size === 1,
 	);
+	const [pending, setPending] = useState(() =>
+		canvas.selections.pendingIds.has(objectId),
+	);
 
 	useEffect(() => {
 		return canvas.selections.subscribe(`change:${objectId}`, setSelected);
@@ -177,8 +181,11 @@ export function useIsSelected(objectId: string) {
 			setExclusive(selectedIds.length === 1 && selectedIds[0] === objectId);
 		});
 	}, [canvas.selections, objectId]);
+	useEffect(() => {
+		return canvas.selections.subscribe(`pendingChange:${objectId}`, setPending);
+	}, [canvas.selections, objectId]);
 
-	return { selected, exclusive };
+	return { selected, exclusive, pending };
 }
 
 export function useIsPendingSelection(objectId: string) {

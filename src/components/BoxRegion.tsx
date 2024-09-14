@@ -1,9 +1,10 @@
 import { useSpring, animated } from '@react-spring/web';
 import { useCanvasGestures } from './canvas/canvasHooks.js';
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { Vector2 } from '../types.js';
 import { CanvasGestureInfo } from '../logic/Canvas.js';
 import { useCanvas } from './canvas/CanvasProvider.js';
+import { gestureState } from './gestures/useGestureState.js';
 
 export interface BoxRegionProps {
 	onPending?: (objectIds: Set<string>, info: CanvasGestureInfo) => void;
@@ -32,6 +33,7 @@ export function BoxRegion({
 
 	useCanvasGestures({
 		onDragStart: (info) => {
+			console.log('HERE');
 			previousPending.current = new Set<string>();
 			originRef.current = info.worldPosition;
 			spring.set({
@@ -40,6 +42,9 @@ export function BoxRegion({
 				width: 0,
 				height: 0,
 			});
+			// TODO: variable claim identity from id prop or something.
+			gestureState.claimedBy = 'boxRegion';
+			gestureState.claimType = 'region';
 		},
 		onDrag: (info) => {
 			const rect = {
@@ -49,8 +54,14 @@ export function BoxRegion({
 				height: Math.abs(info.worldPosition.y - originRef.current.y),
 			};
 			spring.set(rect);
-			const objectIds = canvas.objects.getIntersections(rect, tolerance);
-
+			const entries = canvas.bounds.getIntersections(
+				rect,
+				// FIXME: tolerance is still confusing.
+				tolerance,
+				(data) => data.type === 'object',
+			);
+			// TODO: make more efficient, this is just adapting old code.
+			const objectIds = new Set(entries.map((entry) => entry.id));
 			// this is all just logic to diff as much as possible...
 			if (objectIds.size !== previousPending.current.size) {
 				onPending?.(objectIds, info);
@@ -70,7 +81,7 @@ export function BoxRegion({
 			previousPending.current = objectIds;
 		},
 		onDragEnd: (info) => {
-			const objectIds = canvas.objects.getIntersections(
+			const entries = canvas.bounds.getIntersections(
 				{
 					x: x.get(),
 					y: y.get(),
@@ -78,7 +89,10 @@ export function BoxRegion({
 					height: height.get(),
 				},
 				tolerance,
+				(data) => data.type === 'object',
 			);
+			// TODO: make more efficient, this is just adapting old code.
+			const objectIds = new Set(entries.map((entry) => entry.id));
 
 			onPending?.(new Set(), info);
 			onCommit?.(objectIds, info);

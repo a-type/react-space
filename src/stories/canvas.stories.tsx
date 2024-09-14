@@ -7,7 +7,9 @@ import {
 } from '../components/container/containerHooks.js';
 import { useCreateObject } from '../components/object/useCreateObject.js';
 import {
+	BoxSelect,
 	CanvasRoot,
+	CanvasSvgLayer,
 	CanvasWallpaper,
 	ContainerArea,
 	DebugLayer,
@@ -18,9 +20,11 @@ import {
 	useCanvas,
 	useCreateCanvas,
 	useCreateViewport,
+	useIsSelected,
 	Vector2,
 	ViewportRoot,
 } from '../index.js';
+import clsx from 'clsx';
 
 const meta = {
 	title: 'Canvas',
@@ -92,6 +96,9 @@ export const KitchenSink: Story = {
 								y: pos.y - size.height / 2,
 							})}
 						/>
+						<CanvasSvgLayer id="selection">
+							<BoxSelect className="box-select" />
+						</CanvasSvgLayer>
 					</CanvasRoot>
 				</ViewportRoot>
 				<DebugLayer canvas={canvas} />
@@ -153,10 +160,19 @@ function DemoNode({
 		});
 	}, [canvas, id]);
 
+	const { selected, pending } = useIsSelected(id);
+
 	return (
-		<Object className="node" value={canvasObject} onDoubleClick={zoomToFit}>
+		<Object
+			className="node"
+			value={canvasObject}
+			onDoubleClick={zoomToFit}
+			onClick={() => {
+				canvas.selections.set([id]);
+			}}
+		>
 			<ObjectHandle
-				className="handle"
+				className={clsx('handle', selected && 'selected', pending && 'pending')}
 				style={{
 					width: size,
 					height: size,

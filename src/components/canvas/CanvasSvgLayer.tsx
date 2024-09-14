@@ -13,8 +13,6 @@ export interface CanvasSvgLayerProps {
 const baseStyle: CSSProperties = {
 	position: 'absolute',
 	pointerEvents: 'none',
-	width: '100%',
-	height: '100%',
 };
 
 export function CanvasSvgLayer({
@@ -30,11 +28,15 @@ export function CanvasSvgLayer({
 	useEffect(() => {
 		return react(`canvas svg layer [${id}] viewbox`, () => {
 			const { min, max } = canvas.limits.value;
-			if (ref.current) {
-				ref.current.setAttribute(
+			const el = ref.current;
+			if (el) {
+				el.setAttribute(
 					'viewBox',
 					`${min.x} ${min.y} ${max.x - min.x} ${max.y - min.y}`,
 				);
+				el.style.setProperty('transform', 'translate(-50%, -50%)');
+				el.style.setProperty('width', `${max.x - min.x}px`);
+				el.style.setProperty('height', `${max.y - min.y}px`);
 			}
 		});
 	}, [canvas, ref]);

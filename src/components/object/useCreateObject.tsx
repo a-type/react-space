@@ -14,7 +14,7 @@ import { useObjectGestures } from '../canvas/canvasHooks.js';
 import { useCanvas } from '../canvas/CanvasProvider.js';
 import { CONTAINER_STATE } from './private.js';
 import { BoundsRegistryEntry } from '../../logic/BoundsRegistry.js';
-import { vectorLength } from '../../logic/math.js';
+import { addVectors, vectorLength } from '../../logic/math.js';
 
 export interface CanvasObject<Metadata = any> {
 	id: string;
@@ -93,10 +93,10 @@ export function useCreateObject<Metadata = any>({
 		{
 			onDragStart(info) {
 				draggingSignal.set(true);
-				move(info.worldPosition);
+				move(addVectors(entry.transform.position.value, info.delta));
 			},
 			onDrag(info) {
-				move(info.worldPosition);
+				move(addVectors(entry.transform.position.value, info.delta));
 				if (vectorLength(info.distance) > 5) {
 					console.log('block interaction');
 					blockInteractionSignal.set(true);
@@ -110,7 +110,13 @@ export function useCreateObject<Metadata = any>({
 					console.log('release interaction');
 					blockInteractionSignal.set(false);
 				}, 100);
-				onDrop?.(info);
+				// convert world position to this object -- for multi-object
+				// drags, world position only applies to the 'target' object.
+				const customInfo = {
+					...info,
+					worldPosition: entry.transform.position.value,
+				};
+				onDrop?.(customInfo);
 			},
 		},
 		id,

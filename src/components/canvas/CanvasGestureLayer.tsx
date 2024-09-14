@@ -12,7 +12,10 @@ import {
 	gestureStateToInput,
 	isTouchEvent,
 } from '../../logic/gestureUtils.js';
-import { gestureState } from '../gestures/useGestureState.js';
+import {
+	gestureState,
+	resetGestureState,
+} from '../gestures/useGestureState.js';
 import { useCanvas } from './CanvasProvider.js';
 import { CanvasGestureInput } from '../../logic/Canvas.js';
 import { AutoPan } from '../../logic/AutoPan.js';
@@ -58,17 +61,17 @@ function useCanvasGestures() {
 				gestureDetails.current.buttons = state.buttons;
 
 				applyGestureState(gestureInputRef.current, state, canvas.gestureState);
-				if (gestureState.claimedBy) {
+				if (gestureState.claimType === 'object' && gestureState.claimedBy) {
 					console.debug(`gesture claimed by ${gestureState.claimedBy}`);
 					// TODO: simplify? seems like redundant handoff between states.
 					gestureInputRef.current.targetId = gestureState.claimedBy;
 					canvas.onObjectDragStart(gestureInputRef.current);
-				} else if (
-					isCanvasDrag(gestureDetails.current) ||
-					canvas.tools.boxSelect
-				) {
-					canvas.onCanvasDragStart(gestureInputRef.current);
-					return;
+				} else {
+					gestureInputRef.current.targetId = undefined;
+					if (isCanvasDrag(gestureDetails.current) || canvas.tools.boxSelect) {
+						canvas.onCanvasDragStart(gestureInputRef.current);
+						return;
+					}
 				}
 			},
 			onDrag: (state) => {
@@ -85,7 +88,6 @@ function useCanvasGestures() {
 				} else {
 					if (isCanvasDrag(gestureDetails.current) || canvas.tools.boxSelect) {
 						if (!state.last) {
-							gestureState.claimedBy = 'canvas';
 							canvas.onCanvasDrag(gestureInputRef.current);
 						}
 					}
@@ -93,7 +95,7 @@ function useCanvasGestures() {
 			},
 			onDragEnd: (state) => {
 				applyGestureState(gestureInputRef.current, state, canvas.gestureState);
-				if (gestureState.claimedBy) {
+				if (gestureState.claimType === 'object' && gestureState.claimedBy) {
 					console.debug(
 						`drag complete. gesture claimed by ${gestureState.claimedBy}`,
 					);
@@ -101,7 +103,7 @@ function useCanvasGestures() {
 					canvas.onObjectDragEnd(gestureInputRef.current);
 					// this gesture was claimed, but it's now over.
 					// we don't take action but we do reset the claim status
-					gestureState.claimedBy = null;
+					resetGestureState();
 					return;
 				} else {
 					const info = gestureStateToInput(state);
@@ -126,6 +128,8 @@ function useCanvasGestures() {
 				canvas.gestureState.containerCandidate = null;
 				canvas.gestureState.displacement.x = 0;
 				canvas.gestureState.displacement.y = 0;
+
+				gestureInputRef.current.targetId = undefined;
 			},
 			onContextMenu: ({ event }) => {
 				event.preventDefault();

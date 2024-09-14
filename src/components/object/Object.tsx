@@ -46,6 +46,7 @@ export const Object = function Object({
 		onDragEnd: (state) => {
 			if (state.tap) {
 				gestureState.claimedBy = value.id;
+				gestureState.claimType = 'object';
 				const info: CanvasGestureInfo = {
 					alt: state.altKey,
 					ctrlOrMeta: state.ctrlKey || state.metaKey,

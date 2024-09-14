@@ -99,6 +99,7 @@ export function DebugLayer({ canvas: logicalCanvas }: DebugLayerProps) {
 			style={{
 				position: 'absolute',
 				inset: 0,
+				opacity: 0.5,
 				zIndex: 1000,
 				pointerEvents: 'none',
 				width: '100%',

@@ -305,7 +305,10 @@ export class BoundsRegistry<
 		}
 
 		// ensure this isn't 0 as it's used as a divisor (although we should be safe here)
-		const testArea = Math.max(Number.MIN_VALUE, box.width * box.height);
+		const testArea = Math.max(
+			Number.MIN_VALUE,
+			Math.min(box.width * box.height, objectWidth * objectHeight),
+		);
 		const intersectionArea =
 			Math.max(
 				0,

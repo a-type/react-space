@@ -96,6 +96,12 @@ export function useCreateObject<Metadata = any>({
 
 	const [gestureInfoRef, resetGestureInfo, copyInfoFrom] = useGestureInfo();
 
+	// must track this independently of gesture info, because
+	// we also need to track and clean up non-accepted container references...
+	const containerCandidateRef = useRef<BoundsRegistryEntry<
+		ContainerData<any>
+	> | null>(null);
+
 	const containerState = useAtom(`${id}: container state`, { overId: null } as {
 		overId: string | null;
 	});
@@ -103,18 +109,42 @@ export function useCreateObject<Metadata = any>({
 	useObjectGestures(
 		{
 			onDragStart(input) {
+				// if any parent is included in selection, ignore this gesture entirely
+				// (parent will move us)
+				if (
+					entry.transform.anyParentIs((parent) =>
+						canvas.selections.has(parent.id),
+					)
+				) {
+					return;
+				}
+
+				// if user grabs an object that's not part of the active selection,
+				// clear the selection
+				if (!canvas.selections.has(id)) {
+					if (input.shift || input.ctrlOrMeta) {
+						canvas.selections.add(id);
+					} else {
+						canvas.selections.set([]);
+					}
+				}
+
 				draggingSignal.set(true);
 				entry.transform.setGestureOffset(input.distance);
 				entry.transform.setParent(null);
-				console.log({
-					origin: entry.transform.origin.value,
-					position: entry.transform.position.value,
-					worldOrigin: entry.transform.worldOrigin.value,
-					worldPosition: entry.transform.worldPosition.value,
-				});
 				copyInfoFrom(input);
 			},
 			onDrag(input) {
+				// if any parent is included in selection, ignore this gesture entirely
+				// (parent will move us)
+				if (
+					entry.transform.anyParentIs((parent) =>
+						canvas.selections.has(parent.id),
+					)
+				) {
+					return;
+				}
+
 				entry.transform.setGestureOffset(input.distance);
 				if (vectorLength(input.distance) > 5) {
 					blockInteractionSignal.set(true);
@@ -132,24 +162,22 @@ export function useCreateObject<Metadata = any>({
 					const { container, accepted } = containerCandidate;
 					// for any previous container, clear its state
 					if (
-						gestureInfoRef.current.containerId &&
-						gestureInfoRef.current.containerId !== container.id
+						containerCandidateRef.current &&
+						containerCandidateRef.current.id !== container.id
 					) {
-						const prevContainer = canvas.bounds.get<ContainerData<any>>(
-							gestureInfoRef.current.containerId,
+						containerCandidateRef.current.data.overState.update((v) =>
+							v.filter((o) => o.objectId !== entry.id),
 						);
-						if (prevContainer) {
-							prevContainer.data.overState.set({
-								objectId: null,
-								accepted: false,
-							});
-						}
 					}
 					// update container's state to indicate this object is a candidate.
-					// TODO: support multiple objects in this state...
-					container.data.overState.set({
-						objectId: entry.id,
-						accepted,
+					container.data.overState.update((v) => {
+						const existing = v.findIndex((o) => o.objectId === entry.id);
+						if (existing !== -1) {
+							v[existing] = { objectId: entry.id, accepted };
+							// I think reallocating is required for signal to update.
+							return [...v];
+						}
+						return [...v, { objectId: entry.id, accepted }];
 					});
 					if (accepted) {
 						// also update object's own state
@@ -161,25 +189,31 @@ export function useCreateObject<Metadata = any>({
 							container.transform.worldOrigin.value,
 						);
 					}
+					// always set, no matter if accepted or not.
+					containerCandidateRef.current = container;
 				} else {
-					if (gestureInfoRef.current.containerId) {
+					if (containerCandidateRef.current) {
 						// FIXME: repeated often, should be abstracted somewhere
-						const container = canvas.bounds.get<ContainerData<any>>(
-							gestureInfoRef.current.containerId,
+						// reset container's state
+						containerCandidateRef.current.data.overState.update((v) =>
+							v.filter((o) => o.objectId !== entry.id),
 						);
-						if (container) {
-							// reset container's state
-							container.data.overState.set({
-								objectId: null,
-								accepted: false,
-							});
-						}
 					}
 					gestureInfoRef.current.containerId = undefined;
 				}
 				onDrag?.(gestureInfoRef.current);
 			},
 			onDragEnd(input) {
+				// if any parent is included in selection, ignore this gesture entirely
+				// (parent will move us)
+				if (
+					entry.transform.anyParentIs((parent) =>
+						canvas.selections.has(parent.id),
+					)
+				) {
+					return;
+				}
+
 				draggingSignal.set(false);
 				entry.transform.applyGestureOffset();
 				// wait a moment longer to unblock interaction
@@ -192,17 +226,15 @@ export function useCreateObject<Metadata = any>({
 					entry.transform.worldPosition.value;
 				gestureInfoRef.current.position = gestureInfoRef.current.worldPosition;
 
-				if (gestureInfoRef.current.containerId) {
-					const container = canvas.bounds.get<ContainerData<any>>(
-						gestureInfoRef.current.containerId,
+				const container = containerCandidateRef.current;
+				if (container) {
+					// reset container's state
+					container.data.overState.update((v) =>
+						v.filter((o) => o.objectId !== entry.id),
 					);
-					if (container) {
-						// reset container's state
-						container.data.overState.set({
-							objectId: null,
-							accepted: false,
-						});
-						// one more computation for good measure
+
+					// one more computation for good measure (but only if accepted)
+					if (gestureInfoRef.current.containerId === container.id) {
 						gestureInfoRef.current.position = subtractVectors(
 							entry.transform.worldPosition.value,
 							container.transform.worldOrigin.value,
@@ -214,6 +246,7 @@ export function useCreateObject<Metadata = any>({
 
 				// reset for next gesture
 				resetGestureInfo();
+				containerCandidateRef.current = null;
 			},
 		},
 		id,

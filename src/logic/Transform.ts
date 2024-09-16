@@ -168,6 +168,13 @@ export class Transform {
 		return parent.hasParent(otherId);
 	};
 
+	anyParentIs = (predicate: (transform: Transform) => boolean): boolean => {
+		const parent = this.parent.value;
+		if (!parent) return false;
+		if (predicate(parent)) return true;
+		return parent.anyParentIs(predicate);
+	};
+
 	setPosition = (position: Vector2) => {
 		this.inputs.update((inputs) => ({
 			...inputs,

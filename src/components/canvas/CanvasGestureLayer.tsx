@@ -57,21 +57,15 @@ function useCanvasGestures() {
 	const bindPassiveGestures = useGesture(
 		{
 			onDragStart: (state) => {
-				console.debug('drag start', 'canvas');
 				gestureDetails.current.isTouch = isTouchEvent(state.event);
 				gestureDetails.current.buttons = state.buttons;
 
-				console.log(
-					'canvas drag start',
-					gestureInputRef.current,
-					canvas.gestureState,
-				);
-				applyGestureState(gestureInputRef.current, state, canvas.gestureState);
+				applyGestureState(gestureInputRef.current, state);
 				if (gestureState.claimType === 'object' && gestureState.claimedBy) {
-					console.debug(`gesture claimed by ${gestureState.claimedBy}`);
 					// TODO: simplify? seems like redundant handoff between states.
 					gestureInputRef.current.targetId = gestureState.claimedBy;
 					canvas.onObjectDragStart(gestureInputRef.current);
+					autoPan.start(state.xy);
 				} else {
 					gestureInputRef.current.targetId = undefined;
 					if (isCanvasDrag(gestureDetails.current) || canvas.tools.boxSelect) {
@@ -86,7 +80,7 @@ function useCanvasGestures() {
 					gestureDetails.current.isTouch = isTouchEvent(state.event);
 				}
 
-				applyGestureState(gestureInputRef.current, state, canvas.gestureState);
+				applyGestureState(gestureInputRef.current, state);
 
 				if (gestureInputRef.current.targetId) {
 					autoPan.update(state.xy);
@@ -100,9 +94,8 @@ function useCanvasGestures() {
 				}
 			},
 			onDragEnd: (state) => {
-				applyGestureState(gestureInputRef.current, state, canvas.gestureState);
+				applyGestureState(gestureInputRef.current, state);
 				if (gestureState.claimType === 'object' && gestureState.claimedBy) {
-					autoPan.update(state.xy);
 					canvas.onObjectDragEnd(gestureInputRef.current);
 					// this gesture was claimed, but it's now over.
 					// we don't take action but we do reset the claim status
@@ -125,10 +118,8 @@ function useCanvasGestures() {
 				// reset gesture details
 				gestureDetails.current.buttons = 0;
 				gestureDetails.current.isTouch = false;
-				canvas.gestureState.containerCandidate = null;
-				canvas.gestureState.displacement.x = 0;
-				canvas.gestureState.displacement.y = 0;
 
+				autoPan.stop();
 				resetGestureInput();
 			},
 			onContextMenu: ({ event }) => {
@@ -183,11 +174,7 @@ function useAutoPan(gestureInputRef: MutableRefObject<CanvasGestureInput>) {
 	useEffect(() => {
 		return autoPan.subscribe('pan', ({ cursorPosition }) => {
 			if (!cursorPosition) return;
-			// FIXME: allocation
-			gestureInputRef.current.screenPosition = displace(
-				cursorPosition,
-				canvas.gestureState.displacement,
-			);
+			gestureInputRef.current.screenPosition = cursorPosition;
 			canvas.onObjectDrag(gestureInputRef.current);
 		});
 	}, [autoPan, canvas, displace, gestureInputRef]);

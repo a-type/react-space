@@ -103,17 +103,6 @@ function useDragHandle(disabled = false) {
 			// claim this gesture for this object
 			gestureState.claimedBy = object.id;
 			gestureState.claimType = 'object';
-
-			// set up displacement
-			const screenPosition = { x: event.clientX, y: event.clientY };
-			const currentObjectPosition = canvas.getViewportPosition(object.id);
-			if (currentObjectPosition) {
-				const displacement = subtractVectors(
-					currentObjectPosition,
-					screenPosition,
-				);
-				canvas.gestureState.displacement = displacement;
-			}
 		}
 		element.addEventListener('pointerdown', onPointerDown);
 		return () => {

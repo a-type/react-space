@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Box } from '../../types.js';
 import { CanvasGestureInfo } from '../../logic/Canvas.js';
-import { useCanvas } from '../canvas/CanvasProvider.js';
 import { useAtom, useValue } from 'signia-react';
 import { Atom } from 'signia';
 
@@ -23,14 +22,11 @@ export interface Container {
 	accepts?: (containmentEvent: ContainmentEvent<any>) => boolean;
 	id: string;
 	priority: number;
-	overState: Atom<{ objectId: string | null; accepted: boolean }>;
+	overState: Atom<{ objectId: string | null; accepted: boolean }[]>;
 }
 
 export function useCreateContainer(config: ContainerConfig): Container {
-	const overState = useAtom('container over state', {
-		objectId: null as string | null,
-		accepted: false,
-	});
+	const overState = useAtom('container over state', []);
 	const [value] = useState(() => ({
 		accepts: config.accept,
 		id: config.id,
@@ -40,7 +36,7 @@ export function useCreateContainer(config: ContainerConfig): Container {
 	return value;
 }
 
-export function useContainerOverObject(container: Container) {
+export function useContainerObjectsOver(container: Container) {
 	return useValue(container.overState);
 }
 

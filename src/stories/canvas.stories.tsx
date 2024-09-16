@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import * as React from 'react';
 import { useCallback } from 'react';
 import {
-	useContainerOverObject,
+	useContainerObjectsOver,
 	useCreateContainer,
 } from '../components/container/containerHooks.js';
 import { useCreateObject } from '../components/object/useCreateObject.js';
@@ -74,9 +74,14 @@ export const KitchenSink: Story = {
 							position={{ x: -200, y: 100 }}
 						/>
 						<MovableContainer
-							id="3"
+							id="movable-1"
 							priority={3}
 							position={{ x: 200, y: 200 }}
+						/>
+						<MovableContainer
+							id="movable-2"
+							priority={4}
+							position={{ x: -200, y: -200 }}
 						/>
 						<DemoNode id="1" initialPosition={{ x: 10, y: 30 }} />
 						<DemoNode id="2" initialPosition={{ x: 100, y: 100 }}>
@@ -188,14 +193,14 @@ function Container({
 		accept: (event) => event.objectId === '1',
 		priority,
 	});
-	const { objectId, accepted } = useContainerOverObject(container);
+	const overObjects = useContainerObjectsOver(container);
 
 	return (
 		<ContainerArea
 			value={container}
 			className="container"
-			data-object-over={!!objectId}
-			data-object-accepted={accepted}
+			data-object-over={!!overObjects.length}
+			data-object-accepted={overObjects.some((o) => o.accepted)}
 			style={{
 				position: 'absolute',
 				left: position.x,
@@ -238,7 +243,7 @@ function MovableContainer({
 		id: `container-${id}`,
 		priority,
 	});
-	const { objectId, accepted } = useContainerOverObject(container);
+	const overObjects = useContainerObjectsOver(container);
 
 	const { selected, pending } = useIsSelected(id);
 
@@ -251,8 +256,8 @@ function MovableContainer({
 			<ContainerArea
 				value={container}
 				className="container"
-				data-object-over={!!objectId}
-				data-object-accepted={accepted}
+				data-object-over={!!overObjects.length}
+				data-object-accepted={overObjects.some((o) => o.accepted)}
 				style={{
 					width: 200,
 					height: 200,

@@ -32,8 +32,12 @@ export class AutoPan extends EventSubscriber<{
 	 * begin the auto-pan update loop with an initial cursor position -
 	 * should be called at the start of a drag
 	 */
-	start = (cursorPosition: Vector2) => {
-		this.cursorPosition = cursorPosition;
+	start = (cursorPosition: Vector2 | GestureVector2) => {
+		if (Array.isArray(cursorPosition)) {
+			this.cursorPosition = { x: cursorPosition[0], y: cursorPosition[1] };
+		} else {
+			this.cursorPosition = cursorPosition;
+		}
 		this.rafHandle = raf(this.loop);
 	};
 
@@ -88,7 +92,6 @@ export class AutoPan extends EventSubscriber<{
 	};
 
 	private loop = () => {
-		console.log('autopan loop');
 		const autoPan = this.getAutoPan();
 
 		if (vectorLength(autoPan)) {

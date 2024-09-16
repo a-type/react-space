@@ -20,7 +20,7 @@ export function gestureStateToInput(state: GestureState): CanvasGestureInput {
 export function applyGestureState(
 	input: CanvasGestureInput,
 	state: GestureState,
-	canvasGestureState: { displacement: Vector2 },
+	addDistance?: Vector2,
 ) {
 	input.alt = state.altKey;
 	input.ctrlOrMeta = state.ctrlKey || state.metaKey;
@@ -33,12 +33,12 @@ export function applyGestureState(
 		x: state.movement[0],
 		y: state.movement[1],
 	};
-	input.screenPosition.x = Math.round(
-		state.xy[0] + canvasGestureState.displacement.x,
-	);
-	input.screenPosition.y = Math.round(
-		state.xy[1] + canvasGestureState.displacement.y,
-	);
+	if (addDistance) {
+		input.distance.x += addDistance.x;
+		input.distance.y += addDistance.y;
+	}
+	input.screenPosition.x = state.xy[0];
+	input.screenPosition.y = state.xy[1];
 }
 
 export function isTouchEvent(event: Event) {

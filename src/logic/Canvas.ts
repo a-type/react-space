@@ -86,7 +86,7 @@ export type ContainerData<Metadata> = {
 	type: 'container';
 	priority: number;
 	accepts?: (containmentEvent: ObjectContainmentEvent<Metadata>) => boolean;
-	overState: Atom<{ objectId: string | null; accepted: boolean }>;
+	overState: Atom<{ objectId: string | null; accepted: boolean }[]>;
 };
 
 export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
@@ -107,11 +107,6 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 		dragLocked: false,
 		boxSelect: false,
 	});
-
-	readonly gestureState = {
-		displacement: { x: 0, y: 0 },
-		containerCandidate: null as BoundsRegistryEntry<ContainerData<any>> | null,
-	};
 
 	private _positionSnapIncrement = 1;
 	private _viewportUpdateReact;
@@ -183,6 +178,7 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 		input: CanvasGestureInput,
 	): CanvasGestureInput => {
 		input.delta = this.viewport.viewportDeltaToWorld(input.delta);
+		input.distance = this.viewport.viewportDeltaToWorld(input.distance);
 		return input;
 	};
 
@@ -256,21 +252,6 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 				gestureInfo: this.inputToInfo({ ...input }),
 			});
 
-		if (winningContainer?.id !== this.gestureState.containerCandidate?.id) {
-			if (this.gestureState.containerCandidate) {
-				this.gestureState.containerCandidate.data.overState.set({
-					objectId: null,
-					accepted: false,
-				});
-			}
-			if (winningContainer) {
-				winningContainer.data.overState.set({
-					objectId: entry.id,
-					accepted,
-				});
-			}
-			this.gestureState.containerCandidate = winningContainer ?? null;
-		}
 		if (winningContainer) {
 			return { container: winningContainer, accepted };
 		}

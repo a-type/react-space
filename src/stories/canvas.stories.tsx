@@ -135,19 +135,9 @@ function DemoNode({
 		getOrigin,
 		onDrag: (event) => {},
 		onDrop: (event) => {
-			if (event.container) {
-				setContainer(event.container.id);
-				setPosition(event.container.relativePosition);
-				console.log(
-					'drop on container',
-					event.worldPosition,
-					event.container.relativePosition,
-				);
-			} else {
-				setContainer(null);
-				setPosition(event.worldPosition);
-				console.log('drop on canvas', event.worldPosition);
-			}
+			setContainer(event.containerId ?? null);
+			setPosition(event.position);
+			console.log('drop on', event.containerId ?? 'canvas', event.position);
 		},
 	});
 
@@ -235,19 +225,13 @@ function MovableContainer({
 		containerId: parentContainer,
 		onDrag: (event) => {},
 		onDrop: (event) => {
-			if (event.container) {
-				setParentContainer(event.container.id);
-				setPosition(event.container.relativePosition);
-				console.log(
-					'drop on container',
-					event.worldPosition,
-					event.container.relativePosition,
-				);
-			} else {
-				setParentContainer(null);
-				setPosition(event.worldPosition);
-				console.log('drop on canvas', event.worldPosition);
-			}
+			setParentContainer(event.containerId ?? null);
+			setPosition(event.position);
+			console.log(
+				'drop on',
+				event.containerId ?? 'canvas',
+				event.worldPosition,
+			);
 		},
 	});
 	const container = useCreateContainer({
@@ -256,8 +240,13 @@ function MovableContainer({
 	});
 	const { objectId, accepted } = useContainerOverObject(container);
 
+	const { selected, pending } = useIsSelected(id);
+
 	return (
-		<Object className="containerFrame" value={canvasObject}>
+		<Object
+			className={clsx('containerFrame', { selected, pending })}
+			value={canvasObject}
+		>
 			<ObjectHandle className="containerFrameHandle" />
 			<ContainerArea
 				value={container}

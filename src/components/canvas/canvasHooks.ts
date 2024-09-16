@@ -3,6 +3,7 @@ import { atom } from 'signia';
 import { useSnapshot } from 'valtio';
 import {
 	CanvasGestureInfo,
+	CanvasGestureInput,
 	ContainerData,
 	ObjectData,
 } from '../../logic/Canvas.js';
@@ -120,9 +121,9 @@ export function useCanvasGestures(handlers: {
 
 export function useObjectGestures(
 	handlers: {
-		onDragStart?: (info: CanvasGestureInfo) => void;
-		onDrag?: (info: CanvasGestureInfo) => void;
-		onDragEnd?: (info: CanvasGestureInfo) => void;
+		onDragStart?: (info: CanvasGestureInput) => void;
+		onDrag?: (info: CanvasGestureInput) => void;
+		onDragEnd?: (info: CanvasGestureInput) => void;
 	},
 	objectId: string,
 ) {

@@ -1,24 +1,17 @@
 import { isMiddleClick, isRightClick, stopPropagation } from '@a-type/utils';
-import { useDrag } from '@use-gesture/react';
 import {
 	CSSProperties,
 	HTMLAttributes,
-	MutableRefObject,
 	useCallback,
 	useEffect,
-	useLayoutEffect,
-	useMemo,
 	useRef,
 } from 'react';
 import { track, useValue } from 'signia-react';
-import { AutoPan } from '../../logic/AutoPan.js';
-import { CanvasGestureInput } from '../../logic/Canvas.js';
-import { addVectors, roundVector, subtractVectors } from '../../logic/math.js';
-import { Vector2 } from '../../types.js';
+import { subtractVectors } from '../../logic/math.js';
 import { useDragLocked } from '../canvas/canvasHooks.js';
 import { useCanvas } from '../canvas/CanvasProvider.js';
-import { useObject } from './Object.js';
 import { gestureState } from '../gestures/useGestureState.js';
+import { useObject } from './Object.js';
 
 export interface ObjectHandleProps extends HTMLAttributes<HTMLDivElement> {
 	disabled?: boolean;

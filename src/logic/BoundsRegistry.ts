@@ -40,7 +40,7 @@ export class BoundsRegistryEntry<TData extends BoundsEntryData> {
 
 	updateFromResize(entry: ResizeObserverEntry) {
 		const bounds = entry.borderBoxSize[0];
-		this.transform.size.set({
+		this.transform.setSize({
 			width: bounds.inlineSize,
 			height: bounds.blockSize,
 		});
@@ -159,8 +159,8 @@ export class BoundsRegistry<
 		this.deregistered.clear();
 	};
 
-	get(id: string) {
-		return this.entries.get(id);
+	get<TSpecific extends TDataTypes>(id: string) {
+		return this.entries.get(id) as BoundsRegistryEntry<TSpecific> | undefined;
 	}
 
 	get ids() {
@@ -171,13 +171,13 @@ export class BoundsRegistry<
 		const entry = this.get(id);
 
 		if (element === null) {
-			entry?.transform.size.set({ width: 0, height: 0 });
+			entry?.transform.setSize({ width: 0, height: 0 });
 			return;
 		}
 
 		element.setAttribute('data-observed-object-id', id);
 		this.sizeObserver.observe(element);
-		entry?.transform.size.set({
+		entry?.transform.setSize({
 			width: element.clientWidth,
 			height: element.clientHeight,
 		});

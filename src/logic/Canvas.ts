@@ -20,15 +20,22 @@ export interface CanvasGestureInfo {
 	shift: boolean;
 	alt: boolean;
 	ctrlOrMeta: boolean;
+	/**
+	 * Whether the gesture is definitely intentional by the user.
+	 */
 	intentional: boolean;
+	/**
+	 * Difference from last event.
+	 */
 	delta: Vector2;
+	/**
+	 * Total movement of gesture
+	 */
 	distance: Vector2;
 	worldPosition: Vector2;
 	targetId?: string;
-	container?: {
-		id: string;
-		relativePosition: Vector2;
-	};
+	containerId?: string;
+	position: Vector2;
 }
 
 export interface ObjectContainmentEvent<Metadata> {
@@ -45,7 +52,10 @@ export interface ObjectRegistration<Metadata> {
 }
 
 export interface CanvasGestureInput
-	extends Omit<CanvasGestureInfo, 'worldPosition'> {
+	extends Omit<
+		CanvasGestureInfo,
+		'worldPosition' | 'position' | 'containerId'
+	> {
 	screenPosition: Vector2;
 }
 
@@ -55,9 +65,9 @@ const DEFAULT_LIMITS: RectLimits = {
 };
 
 export type CanvasEvents = {
-	objectDragStart: (info: CanvasGestureInfo) => void;
-	objectDrag: (info: CanvasGestureInfo) => void;
-	objectDragEnd: (info: CanvasGestureInfo) => void;
+	objectDragStart: (info: CanvasGestureInput) => void;
+	objectDrag: (info: CanvasGestureInput) => void;
+	objectDragEnd: (info: CanvasGestureInput) => void;
 	canvasTap: (info: CanvasGestureInfo) => void;
 	canvasDragStart: (info: CanvasGestureInfo) => void;
 	canvasDrag: (info: CanvasGestureInfo) => void;
@@ -170,79 +180,53 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 		clampVector(position, this.limits.value.min, this.limits.value.max);
 
 	private transformGesture = (
-		{ screenPosition, delta, ...rest }: CanvasGestureInput,
-		snap?: boolean,
-	): CanvasGestureInfo => {
-		let pos = this.viewport.viewportToWorld(screenPosition);
-		if (snap) {
-			pos = this.snapPosition(pos);
-		}
-		return Object.assign(rest, {
+		input: CanvasGestureInput,
+	): CanvasGestureInput => {
+		input.delta = this.viewport.viewportDeltaToWorld(input.delta);
+		return input;
+	};
+
+	private inputToInfo = (input: CanvasGestureInput): CanvasGestureInfo => {
+		input = this.transformGesture(input);
+		let pos = this.viewport.viewportToWorld(input.screenPosition);
+		return Object.assign(input, {
 			worldPosition: pos,
-			delta: this.viewport.viewportDeltaToWorld(delta),
+			position: pos,
 		});
 	};
 
 	onCanvasTap = (info: CanvasGestureInput) => {
-		this.emit('canvasTap', this.transformGesture(info));
+		this.emit('canvasTap', this.inputToInfo(info));
 	};
 
 	onCanvasDragStart = (info: CanvasGestureInput) => {
-		this.emit('canvasDragStart', this.transformGesture(info));
+		this.emit('canvasDragStart', this.inputToInfo(info));
 	};
 	onCanvasDrag = (info: CanvasGestureInput) => {
-		this.emit('canvasDrag', this.transformGesture(info));
+		this.emit('canvasDrag', this.inputToInfo(info));
 	};
 	onCanvasDragEnd = (info: CanvasGestureInput) => {
-		this.emit('canvasDragEnd', this.transformGesture(info));
+		this.emit('canvasDragEnd', this.inputToInfo(info));
 	};
 
-	onObjectDragStart = (info: CanvasGestureInput) => {
-		if (!info.targetId) return;
-		const gestureInfo = this.transformGesture(info);
-		const entry = this.bounds.get(info.targetId);
-		if (entry) {
-			this.updateContainer(info.targetId, entry as any, gestureInfo);
-		}
+	onObjectDragStart = (input: CanvasGestureInput) => {
+		const gestureInfo = this.transformGesture(input);
 		this.emit('objectDragStart', gestureInfo);
 	};
-	onObjectDrag = (info: CanvasGestureInput) => {
-		if (!info.targetId) return;
-		const gestureInfo = this.transformGesture(info);
-		const entry = this.bounds.get(info.targetId);
-		if (entry) {
-			this.updateContainer(info.targetId, entry as any, gestureInfo);
-			// FIXME: kinda messy. required to position the bounds of the dragged
-			// object so that it's back in global space
-			entry.transform.parent.set(null);
-		}
+	onObjectDrag = (input: CanvasGestureInput) => {
+		const gestureInfo = this.transformGesture(input);
 		this.emit('objectDrag', gestureInfo);
 	};
-	onObjectDragEnd = (info: CanvasGestureInput) => {
-		if (!info.targetId) return;
-
-		const gestureInfo = this.transformGesture(info, true);
-		if (this.gestureState.containerCandidate) {
-			// FIXME: kinda messy.
-			const entry = this.bounds.get(info.targetId);
-			if (entry) {
-				this.updateContainer(info.targetId, entry as any, gestureInfo);
-			}
-			this.gestureState.containerCandidate?.data.overState.set({
-				objectId: null,
-				accepted: false,
-			});
-			this.gestureState.containerCandidate = null;
-		}
+	onObjectDragEnd = (input: CanvasGestureInput) => {
+		const gestureInfo = this.transformGesture(input);
 		this.emit('objectDragEnd', gestureInfo);
 	};
 
-	private updateContainer = (
-		objectId: string,
+	getContainerCandidate = (
 		entry: BoundsRegistryEntry<ObjectData<Metadata>>,
-		info: CanvasGestureInfo,
+		input: CanvasGestureInput,
 	) => {
-		const data = entry?.data;
+		const data = entry.data;
 		if (!data || data.type !== 'object') {
 			return;
 		}
@@ -255,7 +239,7 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 
 		// don't allow objects to be contained by their children
 		const allowedCollisions = collisions.filter(
-			(c) => !c.transform.hasParent(objectId),
+			(c) => !c.transform.hasParent(entry.id),
 		);
 		const winningContainer = allowedCollisions
 			.sort((a, b) => a.data.priority - b.data.priority)
@@ -264,11 +248,12 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 		const accepted =
 			!winningContainer?.data.accepts ||
 			winningContainer.data.accepts({
-				objectId,
+				objectId: entry.id,
 				objectMetadata: metadata ?? undefined,
 				objectBounds: entry.transform.bounds.value,
 				ownBounds: winningContainer.transform.bounds.value,
-				gestureInfo: info,
+				// FIXME: allocation
+				gestureInfo: this.inputToInfo({ ...input }),
 			});
 
 		if (winningContainer?.id !== this.gestureState.containerCandidate?.id) {
@@ -280,25 +265,17 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 			}
 			if (winningContainer) {
 				winningContainer.data.overState.set({
-					objectId,
+					objectId: entry.id,
 					accepted,
 				});
 			}
 			this.gestureState.containerCandidate = winningContainer ?? null;
 		}
-		if (winningContainer && accepted) {
-			info.container = {
-				id: winningContainer.id,
-				relativePosition: {
-					x:
-						entry.transform.bounds.value.x -
-						winningContainer.transform.worldOrigin.value.x,
-					y:
-						entry.transform.bounds.value.y -
-						winningContainer.transform.worldOrigin.value.y,
-				},
-			};
+		if (winningContainer) {
+			return { container: winningContainer, accepted };
 		}
+
+		return null;
 	};
 
 	/**

@@ -27,8 +27,12 @@ export function applyGestureState(
 	input.shift = state.shiftKey;
 	input.delta.x = state.delta[0];
 	input.delta.y = state.delta[1];
-	input.distance.x = state.movement[0];
-	input.distance.y = state.movement[1];
+	// unfortunately it seems this requires allocation to keep
+	// signals happy.
+	input.distance = {
+		x: state.movement[0],
+		y: state.movement[1],
+	};
 	input.screenPosition.x = Math.round(
 		state.xy[0] + canvasGestureState.displacement.x,
 	);

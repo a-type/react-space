@@ -147,7 +147,7 @@ export function useViewportGestureControls(
 			onDrag: (state) => {
 				// ignore claimed gestures
 				if (gestureState.claimedBy) {
-					console.log('ignoring drag claimed by', gestureState.claimedBy);
+					console.debug('ignoring drag claimed by', gestureState.claimedBy);
 					return;
 				}
 

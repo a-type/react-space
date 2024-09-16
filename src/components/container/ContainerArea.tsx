@@ -50,7 +50,7 @@ export function ContainerArea({ value, ...rest }: ContainerAreaProps) {
 	useEffect(() => {
 		const el = positionRef.current;
 		if (!el) return;
-		entry.transform.position.set({
+		entry.transform.setPosition({
 			x: el.offsetLeft,
 			y: el.offsetTop,
 		});

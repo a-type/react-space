@@ -1,5 +1,5 @@
 import { to } from '@react-spring/web';
-import { LiveSize, LiveVector2, Vector2 } from '../types.js';
+import { LiveSize, LiveVector2, Size, Vector2 } from '../types.js';
 import { computed } from 'signia';
 
 /**
@@ -307,4 +307,12 @@ export function snapshotLiveVector(vec: LiveVector2) {
 		x: vec.value.x,
 		y: vec.value.y,
 	};
+}
+
+export function vectorsEqual(a: Vector2, b: Vector2) {
+	return a.x === b.x && a.y === b.y;
+}
+
+export function sizesEqual(a: Size, b: Size) {
+	return a.width === b.width && a.height === b.height;
 }

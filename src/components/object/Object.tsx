@@ -1,3 +1,4 @@
+import { useGesture } from '@use-gesture/react';
 import {
 	createContext,
 	CSSProperties,
@@ -5,19 +6,17 @@ import {
 	useContext,
 	useRef,
 } from 'react';
-import { CanvasObject } from './useCreateObject.js';
-import { useRerasterize } from '../../logic/rerasterizeSignal.js';
+import { useComputed, useValue } from 'signia-react';
 import { useMergedRef } from '../../hooks.js';
-import { useGesture } from '@use-gesture/react';
-import { useCanvas } from '../canvas/CanvasProvider.js';
-import { CanvasGestureInfo, ObjectData } from '../../logic/Canvas.js';
-import { ContainerPortal } from '../container/ContainerPortal.js';
-import { track, useComputed, useValue } from 'signia-react';
-import { CONTAINER_STATE } from './private.js';
-import { gestureState } from '../gestures/useGestureState.js';
-import { useDefiniteObjectEntry } from '../canvas/canvasHooks.js';
-import { useLiveElementPosition } from './signalHooks.js';
 import { BoundsRegistryEntry } from '../../logic/BoundsRegistry.js';
+import { CanvasGestureInfo, ObjectData } from '../../logic/Canvas.js';
+import { useRerasterize } from '../../logic/rerasterizeSignal.js';
+import { useCanvas } from '../canvas/CanvasProvider.js';
+import { ContainerPortal } from '../container/ContainerPortal.js';
+import { gestureState } from '../gestures/useGestureState.js';
+import { CONTAINER_STATE } from './private.js';
+import { useLiveElementPosition } from './signalHooks.js';
+import { CanvasObject } from './useCreateObject.js';
 
 export interface ObjectProps extends HTMLAttributes<HTMLDivElement> {
 	value: CanvasObject<any>;
@@ -47,6 +46,10 @@ export const Object = function Object({
 			if (state.tap) {
 				gestureState.claimedBy = value.id;
 				gestureState.claimType = 'object';
+				const position = canvas.viewport.viewportToWorld({
+					x: state.xy[0],
+					y: state.xy[1],
+				});
 				const info: CanvasGestureInfo = {
 					alt: state.altKey,
 					ctrlOrMeta: state.ctrlKey || state.metaKey,
@@ -60,10 +63,8 @@ export const Object = function Object({
 						y: state.delta[1],
 					}),
 					intentional: true,
-					worldPosition: canvas.viewport.viewportToWorld({
-						x: state.xy[0],
-						y: state.xy[1],
-					}),
+					worldPosition: position,
+					position,
 					targetId: value.id,
 				};
 				onTap?.(info);

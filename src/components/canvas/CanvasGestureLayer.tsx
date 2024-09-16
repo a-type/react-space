@@ -3,6 +3,7 @@ import {
 	forwardRef,
 	HTMLAttributes,
 	MutableRefObject,
+	useCallback,
 	useEffect,
 	useMemo,
 	useRef,
@@ -50,7 +51,7 @@ function useCanvasGestures() {
 		isTouch: false,
 	});
 
-	const gestureInputRef = useGestureInput();
+	const [gestureInputRef, resetGestureInput] = useGestureInput();
 	const autoPan = useAutoPan(gestureInputRef);
 
 	const bindPassiveGestures = useGesture(
@@ -60,6 +61,11 @@ function useCanvasGestures() {
 				gestureDetails.current.isTouch = isTouchEvent(state.event);
 				gestureDetails.current.buttons = state.buttons;
 
+				console.log(
+					'canvas drag start',
+					gestureInputRef.current,
+					canvas.gestureState,
+				);
 				applyGestureState(gestureInputRef.current, state, canvas.gestureState);
 				if (gestureState.claimType === 'object' && gestureState.claimedBy) {
 					console.debug(`gesture claimed by ${gestureState.claimedBy}`);
@@ -96,29 +102,23 @@ function useCanvasGestures() {
 			onDragEnd: (state) => {
 				applyGestureState(gestureInputRef.current, state, canvas.gestureState);
 				if (gestureState.claimType === 'object' && gestureState.claimedBy) {
-					console.debug(
-						`drag complete. gesture claimed by ${gestureState.claimedBy}`,
-					);
 					autoPan.update(state.xy);
 					canvas.onObjectDragEnd(gestureInputRef.current);
 					// this gesture was claimed, but it's now over.
 					// we don't take action but we do reset the claim status
 					resetGestureState();
-					return;
 				} else {
-					const info = gestureStateToInput(state);
-
 					// tap is triggered either by left click, or on touchscreens.
 					// tap must fire before drag end.
 					if (
 						state.tap &&
 						(isCanvasDrag(gestureDetails.current) || isTouchEvent(state.event))
 					) {
-						canvas.onCanvasTap(info);
+						canvas.onCanvasTap(gestureInputRef.current);
 					}
 
 					if (isCanvasDrag(gestureDetails.current) || canvas.tools.boxSelect) {
-						canvas.onCanvasDragEnd(info);
+						canvas.onCanvasDragEnd(gestureInputRef.current);
 					}
 				}
 
@@ -129,7 +129,7 @@ function useCanvasGestures() {
 				canvas.gestureState.displacement.x = 0;
 				canvas.gestureState.displacement.y = 0;
 
-				gestureInputRef.current.targetId = undefined;
+				resetGestureInput();
 			},
 			onContextMenu: ({ event }) => {
 				event.preventDefault();
@@ -148,7 +148,7 @@ function useCanvasGestures() {
 }
 
 function useGestureInput() {
-	return useRef<CanvasGestureInput>({
+	const ref = useRef<CanvasGestureInput>({
 		alt: false,
 		shift: false,
 		ctrlOrMeta: false,
@@ -158,6 +158,19 @@ function useGestureInput() {
 		distance: { x: 0, y: 0 },
 		targetId: undefined,
 	});
+
+	const reset = useCallback(() => {
+		console.log('RESET');
+		ref.current.alt = false;
+		ref.current.shift = false;
+		ref.current.ctrlOrMeta = false;
+		ref.current.intentional = false;
+		ref.current.screenPosition = { x: 0, y: 0 };
+		ref.current.delta = { x: 0, y: 0 };
+		ref.current.distance = { x: 0, y: 0 };
+		ref.current.targetId = undefined;
+	}, []);
+	return [ref, reset] as const;
 }
 
 function useAutoPan(gestureInputRef: MutableRefObject<CanvasGestureInput>) {

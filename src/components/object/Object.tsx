@@ -20,7 +20,6 @@ import { CanvasObject } from './useCreateObject.js';
 
 export interface ObjectProps extends HTMLAttributes<HTMLDivElement> {
 	value: CanvasObject<any>;
-	onTap?: (info: CanvasGestureInfo) => void;
 }
 
 const baseStyle: CSSProperties = {
@@ -30,7 +29,6 @@ const baseStyle: CSSProperties = {
 
 export const Object = function Object({
 	value,
-	onTap,
 	children,
 	style: userStyle,
 	...rest
@@ -38,39 +36,7 @@ export const Object = function Object({
 	const ref = useRef<HTMLDivElement>(null);
 	useRerasterize(ref);
 
-	const canvas = useCanvas();
 	const entry = value.entry;
-
-	const bind = useGesture({
-		onDragEnd: (state) => {
-			if (state.tap) {
-				gestureState.claimedBy = value.id;
-				gestureState.claimType = 'object';
-				const position = canvas.viewport.viewportToWorld({
-					x: state.xy[0],
-					y: state.xy[1],
-				});
-				const info: CanvasGestureInfo = {
-					alt: state.altKey,
-					ctrlOrMeta: state.ctrlKey || state.metaKey,
-					shift: state.shiftKey,
-					distance: canvas.viewport.viewportDeltaToWorld({
-						x: state.offset[0],
-						y: state.offset[1],
-					}),
-					delta: canvas.viewport.viewportDeltaToWorld({
-						x: state.delta[0],
-						y: state.delta[1],
-					}),
-					intentional: true,
-					worldPosition: position,
-					position,
-					targetId: value.id,
-				};
-				onTap?.(info);
-			}
-		},
-	});
 
 	const style: CSSProperties = {
 		...baseStyle,
@@ -104,7 +70,6 @@ export const Object = function Object({
 						...style,
 						...positionProps.style,
 					}}
-					{...bind()}
 					{...rest}
 					data-object-over={!!containerState.overId}
 				>

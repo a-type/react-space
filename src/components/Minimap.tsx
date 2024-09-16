@@ -2,22 +2,18 @@ import { animated, useSpring } from '@react-spring/web';
 import { useGesture } from '@use-gesture/react';
 import { Fragment, JSX, useEffect, useRef } from 'react';
 import { react } from 'signia';
-import {
-	useObjectIds,
-	useCanvasLimits,
-	useObjectEntry,
-} from './canvas/canvasHooks.js';
+import { useObjectIds, useObjectEntry } from './canvas/canvasHooks.js';
 import { useViewport } from './viewport/ViewportRoot.js';
-import { useCanvas } from './canvas/CanvasProvider.js';
+import { Canvas } from '../logic/Canvas.js';
 
 export interface MinimapProps {
+	canvas: Canvas;
 	className?: string;
 	renderItem?: (objectId: string) => JSX.Element | null;
 }
 
-export function Minimap({ className, renderItem }: MinimapProps) {
+export function Minimap({ className, renderItem, canvas }: MinimapProps) {
 	const viewport = useViewport();
-	const canvas = useCanvas();
 
 	const bind = useGesture({
 		onDrag: ({ event }) => {

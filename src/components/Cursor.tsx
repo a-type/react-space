@@ -1,5 +1,5 @@
 import { useSpring, animated } from '@react-spring/web';
-import { CSSProperties, ReactNode, useEffect, useMemo } from 'react';
+import { CSSProperties, ReactNode, useEffect } from 'react';
 
 export interface CursorProps {
 	children: ReactNode;

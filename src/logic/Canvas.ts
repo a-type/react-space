@@ -20,6 +20,7 @@ export interface CanvasGestureInfo {
 	shift: boolean;
 	alt: boolean;
 	ctrlOrMeta: boolean;
+	inputType: 'mouse1' | 'mouse2' | 'mouse3' | 'touch' | 'unknown';
 	/**
 	 * Whether the gesture is definitely intentional by the user.
 	 */
@@ -53,6 +54,7 @@ export interface CanvasGestureInput
 		'worldPosition' | 'position' | 'containerId'
 	> {
 	screenPosition: Vector2;
+	screenDelta: Vector2;
 	startPosition: Vector2;
 }
 
@@ -62,6 +64,7 @@ const DEFAULT_LIMITS: RectLimits = {
 };
 
 export type CanvasEvents = {
+	objectTap: (input: CanvasGestureInput) => void;
 	objectDragStart: (info: CanvasGestureInput) => void;
 	objectDrag: (info: CanvasGestureInput) => void;
 	objectDragEnd: (info: CanvasGestureInput) => void;
@@ -198,6 +201,11 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 	};
 	onCanvasDragEnd = (info: CanvasGestureInput) => {
 		this.emit('canvasDragEnd', this.inputToInfo(info));
+	};
+
+	onObjectTap = (input: CanvasGestureInput) => {
+		const gestureInfo = this.transformGesture(input);
+		this.emit('objectTap', gestureInfo);
 	};
 
 	onObjectDragStart = (input: CanvasGestureInput) => {

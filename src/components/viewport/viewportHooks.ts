@@ -10,6 +10,7 @@ import { useStableCallback } from '../../hooks.js';
 import { Viewport } from '../../logic/Viewport.js';
 import { Vector2 } from '../../types.js';
 import { gestureState } from '../gestures/useGestureState.js';
+import { isMiddleClick, isRightClick } from '@a-type/utils';
 
 /**
  * Tracks cursor position and sends updates to the socket connection
@@ -65,8 +66,19 @@ export function useTrackCursor(
 	return onMove;
 }
 
-const PINCH_GESTURE_DAMPING = 200;
-const WHEEL_GESTURE_DAMPING = 100;
+const PINCH_GESTURE_DAMPING = 150;
+const WHEEL_GESTURE_DAMPING = 1000;
+const TRACKPAD_GESTURE_DAMPING = 100;
+
+const MOUSE_WHEEL_DETECT_THRESHOLD = 100;
+
+function dampenedWheelZoom(value: number) {
+	if (Math.abs(value) > MOUSE_WHEEL_DETECT_THRESHOLD) {
+		return { type: 'wheel', value: value / WHEEL_GESTURE_DAMPING };
+	} else {
+		return { type: 'trackpad', value: value / TRACKPAD_GESTURE_DAMPING };
+	}
+}
 
 export interface ViewportGestureConfig {
 	initialZoom: number;
@@ -84,6 +96,7 @@ export function useViewportGestureControls(
 	// we want to do for zoom.
 	useGesture(
 		{
+			// this only works with touchscreen direct pinching, not trackpad.
 			onPinch: ({ da: [d], origin, memo, last }) => {
 				if (memo === undefined) return d;
 				const diff = d - memo;
@@ -97,10 +110,10 @@ export function useViewportGestureControls(
 				return d;
 			},
 			onWheel: ({ delta: [x, y], event, last, metaKey, ctrlKey }) => {
-				// if (isPinching.current) return;
 				if (ctrlKey || metaKey) {
-					viewport.relativeZoom(-y / WHEEL_GESTURE_DAMPING, {
-						origin: 'direct',
+					const { value, type } = dampenedWheelZoom(-y);
+					viewport.relativeZoom(value, {
+						origin: type === 'wheel' ? 'control' : 'direct',
 						centroid: { x: event.clientX, y: event.clientY },
 						gestureComplete: last,
 					});
@@ -145,12 +158,22 @@ export function useViewportGestureControls(
 	const bindPassiveGestures = useGesture(
 		{
 			onDrag: (state) => {
-				// ignore claimed gestures
-				if (gestureState.claimedBy) {
-					console.debug('ignoring drag claimed by', gestureState.claimedBy);
+				// viewport drag is middle click only
+				if (!('button' in state.event) || !isMiddleClick(state.event)) {
 					return;
 				}
 
+				// ignore gestures claimed by objects or regions
+				if (gestureState.claimType) {
+					console.debug(
+						'ignoring drag claimed by',
+						gestureState.claimType,
+						gestureState.claimedBy,
+					);
+					return;
+				}
+
+				// by default, viewport pans on middle click drags.
 				viewport.relativePan(
 					viewport.viewportDeltaToWorld({
 						x: -state.delta[0],

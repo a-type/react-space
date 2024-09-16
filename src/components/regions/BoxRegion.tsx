@@ -1,24 +1,38 @@
 import { useSpring, animated } from '@react-spring/web';
-import { useCanvasGestures } from './canvas/canvasHooks.js';
-import { useRef } from 'react';
-import { Vector2 } from '../types.js';
-import { CanvasGestureInfo } from '../logic/Canvas.js';
-import { useCanvas } from './canvas/CanvasProvider.js';
-import { gestureState } from './gestures/useGestureState.js';
+import { useCanvasGestures } from '../canvas/canvasHooks.js';
+import { useId, useRef } from 'react';
+import { Vector2 } from '../../types.js';
+import { CanvasGestureInfo } from '../../logic/Canvas.js';
+import { useCanvas } from '../canvas/CanvasProvider.js';
+import {
+	claimGesture,
+	gestureState,
+	hasClaim,
+} from '../gestures/useGestureState.js';
 
 export interface BoxRegionProps {
 	onPending?: (objectIds: Set<string>, info: CanvasGestureInfo) => void;
 	onEnd?: (objectIds: Set<string>, info: CanvasGestureInfo) => void;
 	tolerance?: number;
 	className?: string;
+	id?: string;
+	filter?: (info: CanvasGestureInfo) => boolean;
 }
+
+const defaultFilter = (info: CanvasGestureInfo) => {
+	return info.inputType === 'mouse1' || info.inputType === 'touch';
+};
 
 export function BoxRegion({
 	tolerance = 0.5,
 	onPending,
 	onEnd: onCommit,
 	className,
+	id: userId,
+	filter = defaultFilter,
 }: BoxRegionProps) {
+	const generatedId = useId();
+	const id = userId ?? generatedId;
 	const [{ x, y, width, height }, spring] = useSpring(() => ({
 		x: 0,
 		y: 0,
@@ -33,7 +47,10 @@ export function BoxRegion({
 
 	useCanvasGestures({
 		onDragStart: (info) => {
-			console.log('HERE');
+			if (!filter(info)) {
+				return;
+			}
+
 			previousPending.current = new Set<string>();
 			originRef.current = info.worldPosition;
 			spring.set({
@@ -42,11 +59,14 @@ export function BoxRegion({
 				width: 0,
 				height: 0,
 			});
-			// TODO: variable claim identity from id prop or something.
-			gestureState.claimedBy = 'boxRegion';
-			gestureState.claimType = 'region';
+			claimGesture('region', id);
 		},
 		onDrag: (info) => {
+			// TODO: build this into useCanvasGestures?
+			if (!hasClaim('region', id)) {
+				return;
+			}
+
 			const rect = {
 				x: Math.min(info.worldPosition.x, originRef.current.x),
 				y: Math.min(info.worldPosition.y, originRef.current.y),
@@ -56,7 +76,6 @@ export function BoxRegion({
 			spring.set(rect);
 			const entries = canvas.bounds.getIntersections(
 				rect,
-				// FIXME: tolerance is still confusing.
 				tolerance,
 				(data) => data.type === 'object',
 			);
@@ -81,6 +100,10 @@ export function BoxRegion({
 			previousPending.current = objectIds;
 		},
 		onDragEnd: (info) => {
+			if (!hasClaim('region', id)) {
+				return;
+			}
+
 			const entries = canvas.bounds.getIntersections(
 				{
 					x: x.get(),
@@ -94,7 +117,8 @@ export function BoxRegion({
 			// TODO: make more efficient, this is just adapting old code.
 			const objectIds = new Set(entries.map((entry) => entry.id));
 
-			onPending?.(new Set(), info);
+			previousPending.current.clear();
+			onPending?.(previousPending.current, info);
 			onCommit?.(objectIds, info);
 
 			spring.set({ x: 0, y: 0, width: 0, height: 0 });

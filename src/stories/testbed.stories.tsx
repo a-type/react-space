@@ -8,11 +8,13 @@ import {
 import { useCreateObject } from '../components/object/useCreateObject.js';
 import {
 	BoxSelect,
+	CanvasOverlay,
 	CanvasRoot,
 	CanvasSvgLayer,
 	CanvasWallpaper,
 	ContainerArea,
 	DebugLayer,
+	Minimap,
 	NonDraggable,
 	Object,
 	ObjectHandle,
@@ -27,7 +29,7 @@ import {
 import clsx from 'clsx';
 
 const meta = {
-	title: 'Canvas',
+	title: 'Testbed',
 	parameters: {
 		layout: 'fullscreen',
 	},
@@ -35,6 +37,12 @@ const meta = {
 
 export default meta;
 type Story = StoryObj<typeof meta>;
+
+const canvasGestureLogs = {
+	onTap: () => console.log('canvas tap'),
+	onDrag: () => console.log('canvas drag'),
+	onDragEnd: () => console.log('canvas drag end'),
+};
 
 export const KitchenSink: Story = {
 	render() {
@@ -53,14 +61,13 @@ export const KitchenSink: Story = {
 				min: { x: -500, y: -500 },
 			},
 			viewport,
-			// positionSnapIncrement: 24,
 		});
 		// @ts-ignore
 		window.canvas = canvas;
 		return (
 			<>
 				<ViewportRoot className="outer" viewport={viewport}>
-					<CanvasRoot canvas={canvas}>
+					<CanvasRoot canvas={canvas} {...canvasGestureLogs}>
 						<CanvasWallpaper className="background" />
 						<Container id="container" priority={0} position={{ x: 0, y: 0 }} />
 						<Container
@@ -105,6 +112,9 @@ export const KitchenSink: Story = {
 							<BoxSelect className="box-select" />
 						</CanvasSvgLayer>
 					</CanvasRoot>
+					{/* <CanvasOverlay>
+						<Minimap canvas={canvas} />
+					</CanvasOverlay> */}
 				</ViewportRoot>
 				<DebugLayer canvas={canvas} />
 				<div className="controls">
@@ -138,11 +148,17 @@ function DemoNode({
 		initialPosition: position,
 		containerId: container,
 		getOrigin,
-		onDrag: (event) => {},
 		onDrop: (event) => {
 			setContainer(event.containerId ?? null);
 			setPosition(event.position);
 			console.log('drop on', event.containerId ?? 'canvas', event.position);
+		},
+		onTap: (event) => {
+			if (event.shift || event.ctrlOrMeta) {
+				canvas.selections.add(id);
+			} else {
+				canvas.selections.set([id]);
+			}
 		},
 	});
 
@@ -158,14 +174,7 @@ function DemoNode({
 	const { selected, pending } = useIsSelected(id);
 
 	return (
-		<Object
-			className="node"
-			value={canvasObject}
-			onDoubleClick={zoomToFit}
-			onClick={() => {
-				canvas.selections.set([id]);
-			}}
-		>
+		<Object className="node" value={canvasObject} onDoubleClick={zoomToFit}>
 			<ObjectHandle
 				className={clsx('handle', selected && 'selected', pending && 'pending')}
 				style={{

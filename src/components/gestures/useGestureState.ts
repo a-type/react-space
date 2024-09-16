@@ -14,5 +14,23 @@ export function resetGestureState() {
 	gestureState.claimType = null;
 }
 
+export function claimGesture(type: 'canvas'): void;
+export function claimGesture(type: 'object' | 'region', id: string): void;
+export function claimGesture(
+	type: 'object' | 'region' | 'canvas',
+	id?: string,
+) {
+	gestureState.claimedBy = id ?? null;
+	gestureState.claimType = type;
+}
+
+export function hasClaim(type: 'canvas'): boolean;
+export function hasClaim(type: 'object' | 'region', id: string): boolean;
+export function hasClaim(type: 'object' | 'region' | 'canvas', id?: string) {
+	return (
+		gestureState.claimType === type && gestureState.claimedBy === (id ?? null)
+	);
+}
+
 // @ts-ignore
 window.gestureState = gestureState;

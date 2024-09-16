@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import {
+	PointerEvent,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+	useSyncExternalStore,
+} from 'react';
 import { atom } from 'signia';
 import { useSnapshot } from 'valtio';
 import {
@@ -119,11 +126,18 @@ export function useCanvasGestures(handlers: {
 	}, [canvas]);
 }
 
+export function useClaimGesture(
+	type: 'object' | 'region',
+	id: string,
+	filter: (input: CanvasGestureInput) => boolean,
+) {}
+
 export function useObjectGestures(
 	handlers: {
 		onDragStart?: (info: CanvasGestureInput) => void;
 		onDrag?: (info: CanvasGestureInput) => void;
 		onDragEnd?: (info: CanvasGestureInput) => void;
+		onTap?: (info: CanvasGestureInput) => void;
 	},
 	objectId: string,
 ) {
@@ -149,6 +163,11 @@ export function useObjectGestures(
 				const selected = canvas.selections.selectedIds.has(objectId);
 				if (selected || info.targetId === objectId) {
 					handlersRef.current.onDragEnd?.(info);
+				}
+			}),
+			canvas.subscribe('objectTap', (info) => {
+				if (info.targetId === objectId) {
+					handlersRef.current.onTap?.(info);
 				}
 			}),
 		];

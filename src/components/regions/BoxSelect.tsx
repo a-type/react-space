@@ -1,6 +1,6 @@
 import { BoxRegion } from './BoxRegion.jsx';
-import { useCanvas } from './canvas/CanvasProvider.js';
-import { Vector2 } from '../types.js';
+import { useCanvas } from '../canvas/CanvasProvider.js';
+import { Vector2 } from '../../types.js';
 
 export interface BoxSelectProps {
 	className?: string;

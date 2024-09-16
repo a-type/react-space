@@ -20,6 +20,7 @@ import { useCanvas } from '../canvas/CanvasProvider.js';
 import { CONTAINER_STATE } from './private.js';
 import { BoundsRegistryEntry } from '../../logic/BoundsRegistry.js';
 import { addVectors, subtractVectors, vectorLength } from '../../logic/math.js';
+import { isDrag } from '../../logic/gestureUtils.js';
 
 export interface CanvasObject<Metadata = any> {
 	id: string;
@@ -41,6 +42,7 @@ export function useCreateObject<Metadata = any>({
 	metadata,
 	onDrag,
 	onDrop,
+	onTap,
 }: {
 	id: string;
 	containerId?: string | null;
@@ -48,6 +50,7 @@ export function useCreateObject<Metadata = any>({
 	metadata?: Metadata;
 	onDrag?: (event: CanvasGestureInfo) => void;
 	onDrop?: (event: CanvasGestureInfo) => void;
+	onTap?: (event: CanvasGestureInfo) => void;
 	getOrigin?: (position: Vector2, size: Size) => Vector2;
 }): CanvasObject<Metadata> {
 	const canvas = useCanvas();
@@ -130,8 +133,6 @@ export function useCreateObject<Metadata = any>({
 				}
 
 				draggingSignal.set(true);
-				entry.transform.setGestureOffset(input.distance);
-				entry.transform.setParent(null);
 				copyInfoFrom(input);
 			},
 			onDrag(input) {
@@ -145,16 +146,22 @@ export function useCreateObject<Metadata = any>({
 					return;
 				}
 
-				entry.transform.setGestureOffset(input.distance);
-				if (vectorLength(input.distance) > 5) {
-					blockInteractionSignal.set(true);
-				}
+				// DO THESE EVERY GESTURE FRAME...
 				copyInfoFrom(input);
-
 				// update position (local position will be overridden in container check below)
 				gestureInfoRef.current.worldPosition =
 					entry.transform.worldPosition.value;
 				gestureInfoRef.current.position = gestureInfoRef.current.worldPosition;
+
+				if (!isDrag(input)) {
+					return;
+				}
+
+				// FROM HERE ON, ONLY CONFIRMED DRAGS.
+				entry.transform.setParent(null);
+				blockInteractionSignal.set(true);
+
+				entry.transform.setGestureOffset(input.distance);
 
 				// check if this object intersects a container
 				const containerCandidate = canvas.getContainerCandidate(entry, input);
@@ -214,35 +221,44 @@ export function useCreateObject<Metadata = any>({
 					return;
 				}
 
+				// DO THESE EVERY GESTURE FRAME...
+				copyInfoFrom(input);
 				draggingSignal.set(false);
 				entry.transform.applyGestureOffset();
-				// wait a moment longer to unblock interaction
-				setTimeout(() => {
-					blockInteractionSignal.set(false);
-				}, 100);
-
-				copyInfoFrom(input);
 				gestureInfoRef.current.worldPosition =
 					entry.transform.worldPosition.value;
 				gestureInfoRef.current.position = gestureInfoRef.current.worldPosition;
 
-				const container = containerCandidateRef.current;
-				if (container) {
-					// reset container's state
-					container.data.overState.update((v) =>
-						v.filter((o) => o.objectId !== entry.id),
-					);
+				if (!isDrag(input)) {
+					// just in case.
+					blockInteractionSignal.set(false);
+					onTap?.(gestureInfoRef.current);
+					return;
+				} else {
+					// ONLY ON CONFIRMED DRAGS.
 
-					// one more computation for good measure (but only if accepted)
-					if (gestureInfoRef.current.containerId === container.id) {
-						gestureInfoRef.current.position = subtractVectors(
-							entry.transform.worldPosition.value,
-							container.transform.worldOrigin.value,
+					// wait a moment longer to unblock interaction
+					setTimeout(() => {
+						blockInteractionSignal.set(false);
+					}, 100);
+
+					const container = containerCandidateRef.current;
+					if (container) {
+						// reset container's state
+						container.data.overState.update((v) =>
+							v.filter((o) => o.objectId !== entry.id),
 						);
-					}
-				}
 
-				onDrop?.(gestureInfoRef.current);
+						// one more computation for good measure (but only if accepted)
+						if (gestureInfoRef.current.containerId === container.id) {
+							gestureInfoRef.current.position = subtractVectors(
+								entry.transform.worldPosition.value,
+								container.transform.worldOrigin.value,
+							);
+						}
+					}
+					onDrop?.(gestureInfoRef.current);
+				}
 
 				// reset for next gesture
 				resetGestureInfo();
@@ -276,6 +292,7 @@ function useGestureInfo() {
 		targetId: '',
 		containerId: undefined,
 		position: { x: 0, y: 0 },
+		inputType: 'unknown',
 	});
 
 	const reset = useCallback(() => {

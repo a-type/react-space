@@ -22,6 +22,13 @@ import { react } from 'signia';
 
 export interface ObjectProps extends HTMLAttributes<HTMLDivElement> {
 	value: CanvasObject<any>;
+	/**
+	 * A content wrapping element is rendered to ensure any styling
+	 * changes you apply to the object don't interfere with critical
+	 * layout properties. You can disable this with this prop, but
+	 * you should avoid applying any CSS properties like transform!
+	 */
+	disableContentWrapper?: boolean;
 }
 
 const baseStyle: CSSProperties = {
@@ -29,10 +36,15 @@ const baseStyle: CSSProperties = {
 	touchAction: 'none',
 };
 
+const contentStyle: CSSProperties = {
+	position: 'relative',
+};
+
 export const Object = function Object({
 	value,
 	children,
 	style: userStyle,
+	disableContentWrapper,
 	...rest
 }: ObjectProps) {
 	const ref = useRef<HTMLDivElement>(null);
@@ -40,10 +52,13 @@ export const Object = function Object({
 
 	const entry = value.entry;
 
-	const style: CSSProperties = {
-		...baseStyle,
-		...userStyle,
-	};
+	const style: CSSProperties =
+		disableContentWrapper ?
+			{
+				...baseStyle,
+				...userStyle,
+			}
+		:	baseStyle;
 
 	const renderProps = useObjectRendering(value, entry);
 
@@ -72,10 +87,20 @@ export const Object = function Object({
 						...style,
 						...renderProps.style,
 					}}
-					{...rest}
+					{...(disableContentWrapper ? rest : {})}
 					data-object-over={!!containerState.overId}
 				>
-					{children}
+					{disableContentWrapper ?
+						children
+					:	<div
+							data-purpose="object-content"
+							style={contentStyle}
+							data-object-over={!!containerState.overId}
+							{...rest}
+						>
+							{children}
+						</div>
+					}
 				</div>
 			</ObjectContext.Provider>
 		</ContainerPortal>

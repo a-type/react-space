@@ -207,13 +207,14 @@ function Container({
 		priority,
 	});
 	const overObjects = useContainerObjectsOver(container);
+	const canDrop = overObjects.some((o) => o.accepted);
 
 	return (
 		<ContainerArea
 			value={container}
-			className="container"
+			className={clsx('container', { dance: canDrop })}
 			data-object-over={!!overObjects.length}
-			data-object-accepted={overObjects.some((o) => o.accepted)}
+			data-object-accepted={canDrop}
 			style={{
 				position: 'absolute',
 				left: position.x,
@@ -257,12 +258,13 @@ function MovableContainer({
 		priority,
 	});
 	const overObjects = useContainerObjectsOver(container);
+	const canDrop = overObjects.some((o) => o.accepted);
 
 	const { selected, pending } = useIsSelected(id);
 
 	return (
 		<Object
-			className={clsx('containerFrame', { selected, pending })}
+			className={clsx('containerFrame', { selected, pending, dance: canDrop })}
 			value={canvasObject}
 		>
 			<ObjectHandle className="containerFrameHandle" />
@@ -270,7 +272,7 @@ function MovableContainer({
 				value={container}
 				className="container"
 				data-object-over={!!overObjects.length}
-				data-object-accepted={overObjects.some((o) => o.accepted)}
+				data-object-accepted={canDrop}
 				style={{
 					width: 200,
 					height: 200,

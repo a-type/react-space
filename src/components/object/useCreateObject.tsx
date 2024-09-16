@@ -271,7 +271,6 @@ function useGestureInfo() {
 		ctrlOrMeta: false,
 		shift: false,
 		distance: { x: 0, y: 0 },
-		delta: { x: 0, y: 0 },
 		intentional: false,
 		worldPosition: { x: 0, y: 0 },
 		targetId: '',
@@ -284,7 +283,6 @@ function useGestureInfo() {
 		ref.current.ctrlOrMeta = false;
 		ref.current.shift = false;
 		ref.current.distance = { x: 0, y: 0 };
-		ref.current.delta = { x: 0, y: 0 };
 		ref.current.intentional = false;
 		ref.current.worldPosition = { x: 0, y: 0 };
 		ref.current.targetId = '';
@@ -297,7 +295,6 @@ function useGestureInfo() {
 		ref.current.ctrlOrMeta = info.ctrlOrMeta;
 		ref.current.shift = info.shift;
 		ref.current.distance = info.distance;
-		ref.current.delta = info.delta;
 		ref.current.intentional = info.intentional;
 		ref.current.targetId = info.targetId;
 	}, []);

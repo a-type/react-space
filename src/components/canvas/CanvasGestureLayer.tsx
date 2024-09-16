@@ -20,7 +20,7 @@ import {
 import { useCanvas } from './CanvasProvider.js';
 import { CanvasGestureInput } from '../../logic/Canvas.js';
 import { AutoPan } from '../../logic/AutoPan.js';
-import { addVectors, roundVector } from '../../logic/math.js';
+import { addVectors, roundVector, subtractVectors } from '../../logic/math.js';
 import { Vector2 } from '../../types.js';
 
 export interface CanvasGestureLayerProps
@@ -53,6 +53,7 @@ function useCanvasGestures() {
 
 	const [gestureInputRef, resetGestureInput] = useGestureInput();
 	const autoPan = useAutoPan(gestureInputRef);
+	const startPositionRef = useRef<Vector2>({ x: 0, y: 0 });
 
 	const bindPassiveGestures = useGesture(
 		{
@@ -60,7 +61,12 @@ function useCanvasGestures() {
 				gestureDetails.current.isTouch = isTouchEvent(state.event);
 				gestureDetails.current.buttons = state.buttons;
 
-				applyGestureState(gestureInputRef.current, state);
+				startPositionRef.current = canvas.viewport.viewportToWorld({
+					x: state.xy[0],
+					y: state.xy[1],
+				});
+
+				applyGestureState(gestureInputRef.current, state, { x: 0, y: 0 });
 				if (gestureState.claimType === 'object' && gestureState.claimedBy) {
 					// TODO: simplify? seems like redundant handoff between states.
 					gestureInputRef.current.targetId = gestureState.claimedBy;
@@ -80,7 +86,17 @@ function useCanvasGestures() {
 					gestureDetails.current.isTouch = isTouchEvent(state.event);
 				}
 
-				applyGestureState(gestureInputRef.current, state);
+				applyGestureState(
+					gestureInputRef.current,
+					state,
+					subtractVectors(
+						canvas.viewport.viewportToWorld({
+							x: state.xy[0],
+							y: state.xy[1],
+						}),
+						startPositionRef.current,
+					),
+				);
 
 				if (gestureInputRef.current.targetId) {
 					autoPan.update(state.xy);
@@ -94,7 +110,17 @@ function useCanvasGestures() {
 				}
 			},
 			onDragEnd: (state) => {
-				applyGestureState(gestureInputRef.current, state);
+				applyGestureState(
+					gestureInputRef.current,
+					state,
+					subtractVectors(
+						canvas.viewport.viewportToWorld({
+							x: state.xy[0],
+							y: state.xy[1],
+						}),
+						startPositionRef.current,
+					),
+				);
 				if (gestureState.claimType === 'object' && gestureState.claimedBy) {
 					canvas.onObjectDragEnd(gestureInputRef.current);
 					// this gesture was claimed, but it's now over.
@@ -145,19 +171,16 @@ function useGestureInput() {
 		ctrlOrMeta: false,
 		intentional: false,
 		screenPosition: { x: 0, y: 0 },
-		delta: { x: 0, y: 0 },
 		distance: { x: 0, y: 0 },
 		targetId: undefined,
 	});
 
 	const reset = useCallback(() => {
-		console.log('RESET');
 		ref.current.alt = false;
 		ref.current.shift = false;
 		ref.current.ctrlOrMeta = false;
 		ref.current.intentional = false;
 		ref.current.screenPosition = { x: 0, y: 0 };
-		ref.current.delta = { x: 0, y: 0 };
 		ref.current.distance = { x: 0, y: 0 };
 		ref.current.targetId = undefined;
 	}, []);

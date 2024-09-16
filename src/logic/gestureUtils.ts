@@ -12,7 +12,6 @@ export function gestureStateToInput(state: GestureState): CanvasGestureInput {
 		shift: state.shiftKey,
 		ctrlOrMeta: state.ctrlKey || state.metaKey,
 		intentional: state.intentional,
-		delta: { x: state.delta[0], y: state.delta[1] },
 		distance: { x: state.offset[0], y: state.offset[1] },
 	};
 }
@@ -20,23 +19,14 @@ export function gestureStateToInput(state: GestureState): CanvasGestureInput {
 export function applyGestureState(
 	input: CanvasGestureInput,
 	state: GestureState,
-	addDistance?: Vector2,
+	distance: Vector2,
 ) {
 	input.alt = state.altKey;
 	input.ctrlOrMeta = state.ctrlKey || state.metaKey;
 	input.shift = state.shiftKey;
-	input.delta.x = state.delta[0];
-	input.delta.y = state.delta[1];
 	// unfortunately it seems this requires allocation to keep
 	// signals happy.
-	input.distance = {
-		x: state.movement[0],
-		y: state.movement[1],
-	};
-	if (addDistance) {
-		input.distance.x += addDistance.x;
-		input.distance.y += addDistance.y;
-	}
+	input.distance = distance;
 	input.screenPosition.x = state.xy[0];
 	input.screenPosition.y = state.xy[1];
 }

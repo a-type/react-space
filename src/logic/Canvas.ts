@@ -25,10 +25,6 @@ export interface CanvasGestureInfo {
 	 */
 	intentional: boolean;
 	/**
-	 * Difference from last event.
-	 */
-	delta: Vector2;
-	/**
 	 * Total movement of gesture
 	 */
 	distance: Vector2;
@@ -177,8 +173,6 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 	private transformGesture = (
 		input: CanvasGestureInput,
 	): CanvasGestureInput => {
-		input.delta = this.viewport.viewportDeltaToWorld(input.delta);
-		input.distance = this.viewport.viewportDeltaToWorld(input.distance);
 		return input;
 	};
 

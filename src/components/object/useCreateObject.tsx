@@ -132,7 +132,6 @@ export function useCreateObject<Metadata = any>({
 					}
 				}
 
-				draggingSignal.set(true);
 				copyInfoFrom(input);
 			},
 			onDrag(input) {
@@ -159,6 +158,7 @@ export function useCreateObject<Metadata = any>({
 
 				// FROM HERE ON, ONLY CONFIRMED DRAGS.
 				entry.transform.setParent(null);
+				draggingSignal.set(true);
 				blockInteractionSignal.set(true);
 
 				entry.transform.setGestureOffset(input.distance);
@@ -172,14 +172,22 @@ export function useCreateObject<Metadata = any>({
 						containerCandidateRef.current &&
 						containerCandidateRef.current.id !== container.id
 					) {
-						containerCandidateRef.current.data.overState.update((v) =>
-							v.filter((o) => o.objectId !== entry.id),
-						);
+						containerCandidateRef.current.data.overState.update((v) => {
+							const index = v.findIndex((o) => o.objectId === entry.id);
+							if (index !== -1) {
+								return v.filter((o) => o.objectId !== entry.id);
+							}
+							return v;
+						});
 					}
 					// update container's state to indicate this object is a candidate.
 					container.data.overState.update((v) => {
 						const existing = v.findIndex((o) => o.objectId === entry.id);
 						if (existing !== -1) {
+							if (v[existing].accepted === accepted) {
+								// no change, no need to update.
+								return v;
+							}
 							v[existing] = { objectId: entry.id, accepted };
 							// I think reallocating is required for signal to update.
 							return [...v];
@@ -202,9 +210,16 @@ export function useCreateObject<Metadata = any>({
 					if (containerCandidateRef.current) {
 						// FIXME: repeated often, should be abstracted somewhere
 						// reset container's state
-						containerCandidateRef.current.data.overState.update((v) =>
-							v.filter((o) => o.objectId !== entry.id),
-						);
+						containerCandidateRef.current.data.overState.update((v) => {
+							const index = v.findIndex((o) => o.objectId === entry.id);
+							if (index !== -1) {
+								return v.filter((o) => o.objectId !== entry.id);
+							}
+							return v;
+						});
+						// since we've left the container, reset our state
+						containerState.set({ overId: null });
+						containerCandidateRef.current = null;
 					}
 					gestureInfoRef.current.containerId = undefined;
 				}

@@ -50,10 +50,18 @@ export function ContainerArea({ value, ...rest }: ContainerAreaProps) {
 	useEffect(() => {
 		const el = positionRef.current;
 		if (!el) return;
-		entry.transform.setPosition({
-			x: el.offsetLeft,
-			y: el.offsetTop,
-		});
+		// if the parent has a border width, we need to offset the position,
+		// as the border width is not taken into account for offsetLeft/offsetTop
+		const parent = el.offsetParent as HTMLElement;
+		if (!parent) return;
+		const parentStyle = getComputedStyle(parent);
+		const parentBorderLeft = parseFloat(parentStyle.borderLeftWidth);
+		const parentBorderTop = parseFloat(parentStyle.borderTopWidth);
+		const position = {
+			x: el.offsetLeft + parentBorderLeft,
+			y: el.offsetTop + parentBorderTop,
+		};
+		entry.transform.setPosition(position);
 	}, [entry]);
 
 	return (

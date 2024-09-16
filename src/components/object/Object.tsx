@@ -4,6 +4,7 @@ import {
 	CSSProperties,
 	HTMLAttributes,
 	useContext,
+	useEffect,
 	useRef,
 } from 'react';
 import { useComputed, useValue } from 'signia-react';
@@ -17,6 +18,7 @@ import { gestureState } from '../gestures/useGestureState.js';
 import { CONTAINER_STATE } from './private.js';
 import { useLiveElementPosition } from './signalHooks.js';
 import { CanvasObject } from './useCreateObject.js';
+import { react } from 'signia';
 
 export interface ObjectProps extends HTMLAttributes<HTMLDivElement> {
 	value: CanvasObject<any>;
@@ -43,12 +45,12 @@ export const Object = function Object({
 		...userStyle,
 	};
 
-	const positionProps = useObjectRenderedPosition(value, entry);
+	const renderProps = useObjectRendering(value, entry);
 
 	const finalRef = useMergedRef<HTMLDivElement>(
 		ref,
 		value.ref,
-		positionProps.ref,
+		renderProps.ref,
 	);
 
 	const containerState = value[CONTAINER_STATE].value;
@@ -68,7 +70,7 @@ export const Object = function Object({
 					ref={finalRef}
 					style={{
 						...style,
-						...positionProps.style,
+						...renderProps.style,
 					}}
 					{...rest}
 					data-object-over={!!containerState.overId}
@@ -94,7 +96,7 @@ export function useMaybeObject() {
 	return useContext(ObjectContext);
 }
 
-function useObjectRenderedPosition(
+function useObjectRendering(
 	object: CanvasObject,
 	entry: BoundsRegistryEntry<ObjectData<any>>,
 ) {
@@ -113,5 +115,26 @@ function useObjectRenderedPosition(
 		[object, entry],
 	);
 
-	return useLiveElementPosition<HTMLDivElement>(renderedPosition);
+	const positionProps =
+		useLiveElementPosition<HTMLDivElement>(renderedPosition);
+
+	// while we're here, add additional style data
+	const draggingSignal = object.draggingSignal;
+	const containerState = object[CONTAINER_STATE];
+	useEffect(() => {
+		return react('object pickup', () => {
+			const dragging = draggingSignal.value;
+			const overId = !!containerState.value.overId;
+
+			const element = positionProps.ref.current;
+			if (element) {
+				element.setAttribute('data-dragging', dragging ? 'true' : 'false');
+				element.setAttribute('data-over', overId ? 'true' : 'false');
+				element.style.setProperty('--dragging', dragging ? '1' : '0');
+				element.style.setProperty('--over', overId ? '1' : '0');
+			}
+		});
+	}, [draggingSignal, containerState, positionProps.ref]);
+
+	return positionProps;
 }

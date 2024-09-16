@@ -18,6 +18,7 @@ import {
 	NonDraggable,
 	Object,
 	ObjectHandle,
+	ObjectPickupEffect,
 	Size,
 	useCanvas,
 	useCreateCanvas,
@@ -46,6 +47,7 @@ const canvasGestureLogs = {
 
 export const KitchenSink: Story = {
 	render() {
+		const [debug, setDebug] = React.useState(false);
 		const viewport = useCreateViewport({
 			zoomLimits: {
 				max: 3,
@@ -116,11 +118,12 @@ export const KitchenSink: Story = {
 						<Minimap canvas={canvas} />
 					</CanvasOverlay> */}
 				</ViewportRoot>
-				<DebugLayer canvas={canvas} />
+				{debug && <DebugLayer canvas={canvas} />}
 				<div className="controls">
 					<button onClick={() => canvas.resizeToFitContent(24)}>
 						Fit content
 					</button>
+					<button onClick={() => setDebug((d) => !d)}>Toggle debug</button>
 				</div>
 			</>
 		);
@@ -176,13 +179,14 @@ function DemoNode({
 	return (
 		<Object className="node" value={canvasObject} onDoubleClick={zoomToFit}>
 			<ObjectHandle
+				asChild
 				className={clsx('handle', selected && 'selected', pending && 'pending')}
 				style={{
 					width: size,
 					height: size,
 				}}
 			>
-				{children}
+				<ObjectPickupEffect>{children}</ObjectPickupEffect>
 			</ObjectHandle>
 		</Object>
 	);

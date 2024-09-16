@@ -126,12 +126,6 @@ export function useCanvasGestures(handlers: {
 	}, [canvas]);
 }
 
-export function useClaimGesture(
-	type: 'object' | 'region',
-	id: string,
-	filter: (input: CanvasGestureInput) => boolean,
-) {}
-
 export function useObjectGestures(
 	handlers: {
 		onDragStart?: (info: CanvasGestureInput) => void;

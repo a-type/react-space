@@ -1,5 +1,5 @@
 import { EventSubscriber } from '@a-type/utils';
-import { RefObject } from 'react';
+import { MutableRefObject, RefObject } from 'react';
 import { atom, Atom, react } from 'signia';
 import { proxy } from 'valtio';
 import { Box, RectLimits, Vector2 } from '../types.js';
@@ -55,6 +55,7 @@ export interface CanvasGestureInput
 	> {
 	screenPosition: Vector2;
 	screenDelta: Vector2;
+	pointerWorldPosition: Vector2;
 	startPosition: Vector2;
 }
 
@@ -96,6 +97,9 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 	get element() {
 		return this._element;
 	}
+	readonly gestureLayerRef = {
+		current: null,
+	} as MutableRefObject<HTMLDivElement | null>;
 	readonly limits: Atom<RectLimits>;
 
 	readonly selections = new Selections();
@@ -237,9 +241,15 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 		);
 
 		// don't allow objects to be contained by their children
-		const allowedCollisions = collisions.filter(
-			(c) => !c.transform.hasParent(entry.id),
-		);
+		const allowedCollisions = collisions
+			.filter((c) => !c.transform.hasParent(entry.id))
+			.filter(
+				// don't allow container collisions with selected containers (they
+				// are moving along with the dragged element, presumably, and
+				// changing containment would be confusing.)
+				(c) =>
+					!c.transform.anyParentIs((parent) => this.selections.has(parent.id)),
+			);
 		const winningContainer = allowedCollisions
 			.sort((a, b) => a.data.priority - b.data.priority)
 			.pop();

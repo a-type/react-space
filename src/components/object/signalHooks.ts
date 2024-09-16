@@ -4,8 +4,10 @@ import { Vector2 } from '../../types.js';
 
 export function useLiveElementPosition<TElement extends HTMLElement>(
 	position: Signal<Vector2> | undefined,
+	{ additionalTransforms = '' } = {},
 ) {
 	const ref = useRef<TElement>(null);
+
 	useEffect(() => {
 		if (!position) return;
 		return react('live element position', () => {
@@ -19,7 +21,9 @@ export function useLiveElementPosition<TElement extends HTMLElement>(
 
 	const style: any = {
 		position: 'absolute',
-		transform: 'translate(var(--x), var(--y))',
+		transform:
+			'translate(var(--x), var(--y))' +
+			(additionalTransforms ? ' ' + additionalTransforms : ''),
 		'--x': position ? position.value.x + 'px' : '0px',
 		'--y': position ? position.value.y + 'px' : '0px',
 	};

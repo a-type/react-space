@@ -1,26 +1,29 @@
 import { useSpring, animated } from '@react-spring/web';
-import { useCanvasGestures } from '../canvas/canvasHooks.js';
-import { useId, useRef } from 'react';
+import { useCanvasGestures, useObjectGestures } from '../canvas/canvasHooks.js';
+import { PointerEvent, useId, useRef } from 'react';
 import { Vector2 } from '../../types.js';
-import { CanvasGestureInfo } from '../../logic/Canvas.js';
+import { CanvasGestureInfo, CanvasGestureInput } from '../../logic/Canvas.js';
 import { useCanvas } from '../canvas/CanvasProvider.js';
 import {
 	claimGesture,
+	GestureClaimDetail,
 	gestureState,
 	hasClaim,
+	useClaimGesture,
 } from '../gestures/useGestureState.js';
+import { isLeftClick } from '@a-type/utils';
 
 export interface BoxRegionProps {
-	onPending?: (objectIds: Set<string>, info: CanvasGestureInfo) => void;
-	onEnd?: (objectIds: Set<string>, info: CanvasGestureInfo) => void;
+	onPending?: (objectIds: Set<string>, info: CanvasGestureInput) => void;
+	onEnd?: (objectIds: Set<string>, info: CanvasGestureInput) => void;
 	tolerance?: number;
 	className?: string;
 	id?: string;
-	filter?: (info: CanvasGestureInfo) => boolean;
+	filter?: (event: GestureClaimDetail) => boolean;
 }
 
-const defaultFilter = (info: CanvasGestureInfo) => {
-	return info.inputType === 'mouse1' || info.inputType === 'touch';
+const defaultFilter = (event: GestureClaimDetail) => {
+	return event.isLeftMouse || event.isTouch;
 };
 
 export function BoxRegion({
@@ -45,87 +48,88 @@ export function BoxRegion({
 
 	const canvas = useCanvas();
 
-	useCanvasGestures({
-		onDragStart: (info) => {
-			if (!filter(info)) {
-				return;
-			}
+	const claimProps = useClaimGesture('tool', id, filter, { onCanvas: true });
 
-			previousPending.current = new Set<string>();
-			originRef.current = info.worldPosition;
-			spring.set({
-				x: info.worldPosition.x,
-				y: info.worldPosition.y,
-				width: 0,
-				height: 0,
-			});
-			claimGesture('region', id);
-		},
-		onDrag: (info) => {
-			// TODO: build this into useCanvasGestures?
-			if (!hasClaim('region', id)) {
-				return;
-			}
-
-			const rect = {
-				x: Math.min(info.worldPosition.x, originRef.current.x),
-				y: Math.min(info.worldPosition.y, originRef.current.y),
-				width: Math.abs(info.worldPosition.x - originRef.current.x),
-				height: Math.abs(info.worldPosition.y - originRef.current.y),
-			};
-			spring.set(rect);
-			const entries = canvas.bounds.getIntersections(
-				rect,
-				tolerance,
-				(data) => data.type === 'object',
-			);
-			// TODO: make more efficient, this is just adapting old code.
-			const objectIds = new Set(entries.map((entry) => entry.id));
-			// this is all just logic to diff as much as possible...
-			if (objectIds.size !== previousPending.current.size) {
-				onPending?.(objectIds, info);
-			} else if (objectIds.size === 0) {
-				if (previousPending.current.size !== 0) {
-					onPending?.(objectIds, info);
+	useObjectGestures(
+		{
+			onDragStart: (input) => {
+				previousPending.current = new Set<string>();
+				originRef.current = input.pointerWorldPosition;
+				spring.set({
+					x: input.pointerWorldPosition.x,
+					y: input.pointerWorldPosition.y,
+					width: 0,
+					height: 0,
+				});
+				claimGesture('object', id);
+			},
+			onDrag: (input) => {
+				// TODO: build this into useCanvasGestures?
+				if (!hasClaim('object', id)) {
+					return;
 				}
-			} else {
-				for (const entry of objectIds) {
-					if (!previousPending.current.has(entry)) {
-						onPending?.(objectIds, info);
-						break;
+
+				const rect = {
+					x: Math.min(input.pointerWorldPosition.x, originRef.current.x),
+					y: Math.min(input.pointerWorldPosition.y, originRef.current.y),
+					width: Math.abs(input.pointerWorldPosition.x - originRef.current.x),
+					height: Math.abs(input.pointerWorldPosition.y - originRef.current.y),
+				};
+				spring.set(rect);
+				const entries = canvas.bounds.getIntersections(
+					rect,
+					tolerance,
+					(data) => data.type === 'object',
+				);
+				// TODO: make more efficient, this is just adapting old code.
+				const objectIds = new Set(entries.map((entry) => entry.id));
+				// this is all just logic to diff as much as possible...
+				if (objectIds.size !== previousPending.current.size) {
+					onPending?.(objectIds, input);
+				} else if (objectIds.size === 0) {
+					if (previousPending.current.size !== 0) {
+						onPending?.(objectIds, input);
+					}
+				} else {
+					for (const entry of objectIds) {
+						if (!previousPending.current.has(entry)) {
+							onPending?.(objectIds, input);
+							break;
+						}
 					}
 				}
-			}
 
-			previousPending.current = objectIds;
+				previousPending.current = objectIds;
+			},
+			onDragEnd: (input) => {
+				if (!hasClaim('object', id)) {
+					return;
+				}
+
+				const entries = canvas.bounds.getIntersections(
+					{
+						x: x.get(),
+						y: y.get(),
+						width: width.get(),
+						height: height.get(),
+					},
+					tolerance,
+					(data) => data.type === 'object',
+				);
+				// TODO: make more efficient, this is just adapting old code.
+				const objectIds = new Set(entries.map((entry) => entry.id));
+
+				previousPending.current.clear();
+				onPending?.(previousPending.current, input);
+				onCommit?.(objectIds, input);
+
+				spring.set({ x: 0, y: 0, width: 0, height: 0 });
+				originRef.current.x = 0;
+				originRef.current.y = 0;
+			},
 		},
-		onDragEnd: (info) => {
-			if (!hasClaim('region', id)) {
-				return;
-			}
-
-			const entries = canvas.bounds.getIntersections(
-				{
-					x: x.get(),
-					y: y.get(),
-					width: width.get(),
-					height: height.get(),
-				},
-				tolerance,
-				(data) => data.type === 'object',
-			);
-			// TODO: make more efficient, this is just adapting old code.
-			const objectIds = new Set(entries.map((entry) => entry.id));
-
-			previousPending.current.clear();
-			onPending?.(previousPending.current, info);
-			onCommit?.(objectIds, info);
-
-			spring.set({ x: 0, y: 0, width: 0, height: 0 });
-			originRef.current.x = 0;
-			originRef.current.y = 0;
-		},
-	});
+		id,
+	);
 
 	return (
 		<animated.rect
@@ -134,6 +138,7 @@ export function BoxRegion({
 			width={width}
 			height={height}
 			className={className}
+			{...claimProps}
 		/>
 	);
 }

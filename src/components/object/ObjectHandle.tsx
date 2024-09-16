@@ -2,19 +2,22 @@ import { isMiddleClick, isRightClick, stopPropagation } from '@a-type/utils';
 import {
 	CSSProperties,
 	HTMLAttributes,
+	PointerEvent,
+	SyntheticEvent,
 	useCallback,
-	useEffect,
-	useRef,
 } from 'react';
 import { track, useValue } from 'signia-react';
-import { subtractVectors } from '../../logic/math.js';
 import { useDragLocked } from '../canvas/canvasHooks.js';
-import { useCanvas } from '../canvas/CanvasProvider.js';
-import { gestureState } from '../gestures/useGestureState.js';
+import {
+	GestureClaimDetail,
+	useClaimGesture,
+} from '../gestures/useGestureState.js';
 import { useObject } from './Object.js';
+import { Slot } from '@radix-ui/react-slot';
 
 export interface ObjectHandleProps extends HTMLAttributes<HTMLDivElement> {
 	disabled?: boolean;
+	asChild?: boolean;
 }
 
 const baseStyle: CSSProperties = {
@@ -24,10 +27,11 @@ const baseStyle: CSSProperties = {
 export const ObjectHandle = track(function ObjectHandle({
 	disabled,
 	style: userStyle,
+	asChild,
 	...rest
 }: ObjectHandleProps) {
 	const obj = useObject();
-	const handleRef = useDragHandle(disabled);
+	const handleProps = useDragHandle(disabled);
 
 	/**
 	 * This handler prevents click events from firing within the draggable handle
@@ -54,11 +58,13 @@ export const ObjectHandle = track(function ObjectHandle({
 			: 'grab',
 	};
 
+	const Component = asChild ? Slot : 'div';
+
 	return (
-		<div
+		<Component
 			style={style}
-			ref={handleRef}
 			onClickCapture={onClickCapture}
+			{...handleProps()}
 			{...rest}
 		/>
 	);
@@ -82,42 +88,27 @@ export const disableDragProps = {
 };
 
 function useDragHandle(disabled = false) {
-	const ref = useRef<HTMLDivElement>(null);
-	const canvas = useCanvas();
 	const object = useObject();
 	const dragLocked = useDragLocked();
 
-	useEffect(() => {
-		const element = ref.current;
-		if (!element) return;
-
-		function onPointerDown(event: PointerEvent) {
-			event.preventDefault();
-
-			if (dragLocked || disabled) return;
-
-			if (isUnacceptableGesture(event)) {
-				return;
-			}
-
-			// claim this gesture for this object
-			gestureState.claimedBy = object.id;
-			gestureState.claimType = 'object';
-		}
-		element.addEventListener('pointerdown', onPointerDown);
-		return () => {
-			element.removeEventListener('pointerdown', onPointerDown);
-		};
-	}, [ref, disabled, dragLocked, object.id, canvas]);
-
-	return ref;
+	return useClaimGesture(
+		'object',
+		object.id,
+		(event) => {
+			// don't override other object claims
+			if (event.existingClaimType === 'object') return false;
+			if (dragLocked || disabled) return false;
+			if (isUnacceptableGesture(event)) return false;
+			return true;
+		},
+		{ overrideOtherClaim: true },
+	);
 }
 
-function isUnacceptableGesture(event: PointerEvent | Event) {
-	if ('button' in event && (isRightClick(event) || isMiddleClick(event)))
-		return true;
-	if (event?.target) {
-		const element = event?.target as HTMLElement;
+function isUnacceptableGesture(event: GestureClaimDetail) {
+	if (event.isRightMouse || event.isMiddleMouse) return true;
+	if (event.target && event.target instanceof HTMLElement) {
+		const element = event.target;
 		// look up the element tree for a hidden or no-drag element to see if dragging is allowed
 		// here.
 		const dragPrevented =

@@ -32,6 +32,7 @@ import {
 	resetGestureState,
 } from '../gestures/useGestureState.js';
 import { useCanvas } from './CanvasProvider.js';
+import { useMergedRef } from '../../hooks.js';
 
 export interface CanvasGestureLayerProps
 	extends Omit<HTMLAttributes<HTMLDivElement>, 'onDrag' | 'onDragEnd'> {
@@ -45,7 +46,9 @@ export const CanvasGestureLayer = forwardRef<
 	CanvasGestureLayerProps
 >(function CanvasGestureLayer({ onDrag, onDragEnd, onTap, ...props }, ref) {
 	const gestureProps = useCanvasGestures({ onDrag, onDragEnd, onTap });
-	return <div ref={ref} {...props} {...gestureProps} />;
+	const canvas = useCanvas();
+	const finalRef = useMergedRef(ref, canvas.gestureLayerRef);
+	return <div ref={finalRef} {...props} {...gestureProps} />;
 });
 
 function defaultOnDrag(info: CanvasGestureInput, canvas: Canvas) {
@@ -104,7 +107,7 @@ function useCanvasGestures({
 				gestureInputRef.current.startPosition = worldPosition;
 
 				applyGestureState(gestureInputRef.current, state, worldPosition);
-				if (gestureState.claimType === 'object' && gestureState.claimedBy) {
+				if (isObjectOrToolGestureClaim() && gestureState.claimedBy) {
 					// TODO: simplify? seems like redundant handoff between states.
 					gestureInputRef.current.targetId = gestureState.claimedBy;
 					canvas.onObjectDragStart(gestureInputRef.current);
@@ -131,7 +134,7 @@ function useCanvasGestures({
 					}),
 				);
 
-				if (gestureState.claimType === 'object' && gestureState.claimedBy) {
+				if (isObjectOrToolGestureClaim() && gestureState.claimedBy) {
 					autoPan.update(state.xy);
 					canvas.onObjectDrag(gestureInputRef.current);
 				} else {
@@ -153,7 +156,7 @@ function useCanvasGestures({
 						y: state.xy[1],
 					}),
 				);
-				if (gestureState.claimType === 'object' && gestureState.claimedBy) {
+				if (isObjectOrToolGestureClaim() && gestureState.claimedBy) {
 					if (state.tap) {
 						canvas.onObjectTap(gestureInputRef.current);
 					}
@@ -217,6 +220,7 @@ function useGestureInput() {
 		startPosition: { x: 0, y: 0 },
 		inputType: 'unknown',
 		screenDelta: { x: 0, y: 0 },
+		pointerWorldPosition: { x: 0, y: 0 },
 	});
 
 	const reset = useCallback(() => {
@@ -242,8 +246,10 @@ function useAutoPan(gestureInputRef: MutableRefObject<CanvasGestureInput>) {
 		return autoPan.subscribe('pan', ({ cursorPosition }) => {
 			if (!cursorPosition) return;
 			gestureInputRef.current.screenPosition = cursorPosition;
+			gestureInputRef.current.pointerWorldPosition =
+				canvas.viewport.viewportToWorld(cursorPosition);
 			gestureInputRef.current.distance = subtractVectors(
-				canvas.viewport.viewportToWorld(cursorPosition),
+				gestureInputRef.current.pointerWorldPosition,
 				gestureInputRef.current.startPosition,
 			);
 			canvas.onObjectDrag(gestureInputRef.current);
@@ -255,4 +261,10 @@ function useAutoPan(gestureInputRef: MutableRefObject<CanvasGestureInput>) {
 
 function displace(screenPosition: Vector2, grabDisplacement: Vector2) {
 	return roundVector(addVectors(screenPosition, grabDisplacement));
+}
+
+function isObjectOrToolGestureClaim() {
+	return (
+		gestureState.claimType === 'object' || gestureState.claimType === 'tool'
+	);
 }

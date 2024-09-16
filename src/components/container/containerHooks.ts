@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useState } from 'react';
 import { Box } from '../../types.js';
 import { CanvasGestureInfo } from '../../logic/Canvas.js';
 import { useAtom, useValue } from 'signia-react';

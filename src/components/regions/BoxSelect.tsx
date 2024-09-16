@@ -1,6 +1,8 @@
 import { BoxRegion } from './BoxRegion.jsx';
 import { useCanvas } from '../canvas/CanvasProvider.js';
 import { Vector2 } from '../../types.js';
+import { useCallback } from 'react';
+import { GestureClaimDetail } from '../gestures/useGestureState.js';
 
 export interface BoxSelectProps {
 	className?: string;
@@ -9,6 +11,16 @@ export interface BoxSelectProps {
 
 export function BoxSelect({ className, onCommit }: BoxSelectProps) {
 	const canvas = useCanvas();
+
+	const filter = useCallback(
+		(event: GestureClaimDetail) => {
+			if (event.isLeftMouse) return true;
+			// touch box select is enabled via a control
+			if (canvas.tools.boxSelect) return true;
+			return false;
+		},
+		[canvas],
+	);
 
 	return (
 		<BoxRegion
@@ -22,9 +34,10 @@ export function BoxSelect({ className, onCommit }: BoxSelectProps) {
 				} else {
 					canvas.selections.set(objectIds);
 				}
-				onCommit?.(objectIds, info.worldPosition);
+				onCommit?.(objectIds, info.pointerWorldPosition);
 			}}
 			className={className}
+			filter={filter}
 		/>
 	);
 }

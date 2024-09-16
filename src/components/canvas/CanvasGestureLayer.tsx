@@ -8,20 +8,16 @@ import {
 	useMemo,
 	useRef,
 } from 'react';
-import {
-	applyGestureState,
-	gestureStateToInput,
-	isTouchEvent,
-} from '../../logic/gestureUtils.js';
+import { AutoPan } from '../../logic/AutoPan.js';
+import { CanvasGestureInput } from '../../logic/Canvas.js';
+import { applyGestureState, isTouchEvent } from '../../logic/gestureUtils.js';
+import { addVectors, roundVector, subtractVectors } from '../../logic/math.js';
+import { Vector2 } from '../../types.js';
 import {
 	gestureState,
 	resetGestureState,
 } from '../gestures/useGestureState.js';
 import { useCanvas } from './CanvasProvider.js';
-import { CanvasGestureInput } from '../../logic/Canvas.js';
-import { AutoPan } from '../../logic/AutoPan.js';
-import { addVectors, roundVector, subtractVectors } from '../../logic/math.js';
-import { Vector2 } from '../../types.js';
 
 export interface CanvasGestureLayerProps
 	extends HTMLAttributes<HTMLDivElement> {}
@@ -53,7 +49,6 @@ function useCanvasGestures() {
 
 	const [gestureInputRef, resetGestureInput] = useGestureInput();
 	const autoPan = useAutoPan(gestureInputRef);
-	const startPositionRef = useRef<Vector2>({ x: 0, y: 0 });
 
 	const bindPassiveGestures = useGesture(
 		{
@@ -61,12 +56,13 @@ function useCanvasGestures() {
 				gestureDetails.current.isTouch = isTouchEvent(state.event);
 				gestureDetails.current.buttons = state.buttons;
 
-				startPositionRef.current = canvas.viewport.viewportToWorld({
+				const worldPosition = canvas.viewport.viewportToWorld({
 					x: state.xy[0],
 					y: state.xy[1],
 				});
+				gestureInputRef.current.startPosition = worldPosition;
 
-				applyGestureState(gestureInputRef.current, state, { x: 0, y: 0 });
+				applyGestureState(gestureInputRef.current, state, worldPosition);
 				if (gestureState.claimType === 'object' && gestureState.claimedBy) {
 					// TODO: simplify? seems like redundant handoff between states.
 					gestureInputRef.current.targetId = gestureState.claimedBy;
@@ -89,13 +85,10 @@ function useCanvasGestures() {
 				applyGestureState(
 					gestureInputRef.current,
 					state,
-					subtractVectors(
-						canvas.viewport.viewportToWorld({
-							x: state.xy[0],
-							y: state.xy[1],
-						}),
-						startPositionRef.current,
-					),
+					canvas.viewport.viewportToWorld({
+						x: state.xy[0],
+						y: state.xy[1],
+					}),
 				);
 
 				if (gestureInputRef.current.targetId) {
@@ -113,13 +106,10 @@ function useCanvasGestures() {
 				applyGestureState(
 					gestureInputRef.current,
 					state,
-					subtractVectors(
-						canvas.viewport.viewportToWorld({
-							x: state.xy[0],
-							y: state.xy[1],
-						}),
-						startPositionRef.current,
-					),
+					canvas.viewport.viewportToWorld({
+						x: state.xy[0],
+						y: state.xy[1],
+					}),
 				);
 				if (gestureState.claimType === 'object' && gestureState.claimedBy) {
 					canvas.onObjectDragEnd(gestureInputRef.current);
@@ -173,6 +163,7 @@ function useGestureInput() {
 		screenPosition: { x: 0, y: 0 },
 		distance: { x: 0, y: 0 },
 		targetId: undefined,
+		startPosition: { x: 0, y: 0 },
 	});
 
 	const reset = useCallback(() => {
@@ -198,6 +189,10 @@ function useAutoPan(gestureInputRef: MutableRefObject<CanvasGestureInput>) {
 		return autoPan.subscribe('pan', ({ cursorPosition }) => {
 			if (!cursorPosition) return;
 			gestureInputRef.current.screenPosition = cursorPosition;
+			gestureInputRef.current.distance = subtractVectors(
+				canvas.viewport.viewportToWorld(cursorPosition),
+				gestureInputRef.current.startPosition,
+			);
 			canvas.onObjectDrag(gestureInputRef.current);
 		});
 	}, [autoPan, canvas, displace, gestureInputRef]);

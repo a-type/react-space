@@ -53,6 +53,7 @@ export interface CanvasGestureInput
 		'worldPosition' | 'position' | 'containerId'
 	> {
 	screenPosition: Vector2;
+	startPosition: Vector2;
 }
 
 const DEFAULT_LIMITS: RectLimits = {

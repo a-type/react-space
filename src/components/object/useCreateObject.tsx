@@ -23,7 +23,7 @@ import {
 import { isDrag } from '../../logic/gestureUtils.js';
 import { subtractVectors } from '../../logic/math.js';
 import { TransformInit } from '../../logic/Transform.js';
-import { useObjectGestures } from '../canvas/canvasHooks.js';
+import { useClaimedGestures } from '../canvas/canvasHooks.js';
 import { useCanvas } from '../canvas/CanvasProvider.js';
 import { CONTAINER_STATE } from './private.js';
 
@@ -177,7 +177,7 @@ export function useCreateObject<Metadata = any>({
 		accepted: boolean;
 	});
 
-	useObjectGestures(
+	useClaimedGestures(
 		{
 			onDragStart(input) {
 				// if any parent is included in selection, ignore this gesture entirely

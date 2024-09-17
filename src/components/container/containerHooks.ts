@@ -1,25 +1,16 @@
 import { createContext, useContext, useState } from 'react';
-import { Box } from '../../types.js';
-import { CanvasGestureInfo } from '../../logic/Canvas.js';
-import { useAtom, useValue } from 'signia-react';
 import { Atom } from 'signia';
-
-export interface ContainmentEvent<Metadata> {
-	objectId: string;
-	objectMetadata?: Metadata;
-	objectBounds: Box;
-	ownBounds: Box;
-	gestureInfo: CanvasGestureInfo;
-}
+import { useAtom, useValue } from 'signia-react';
+import { ObjectContainmentEvent } from '../../logic/Canvas.js';
 
 export interface ContainerConfig {
 	id: string;
-	accept?: (containmentEvent: ContainmentEvent<any>) => boolean;
+	accept?: (containmentEvent: ObjectContainmentEvent<any>) => boolean;
 	priority?: number;
 }
 
 export interface Container {
-	accepts?: (containmentEvent: ContainmentEvent<any>) => boolean;
+	accepts?: (containmentEvent: ObjectContainmentEvent<any>) => boolean;
 	id: string;
 	priority: number;
 	overState: Atom<{ objectId: string | null; accepted: boolean }[]>;

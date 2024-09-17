@@ -71,10 +71,10 @@ const DEFAULT_LIMITS: RectLimits = {
 };
 
 export type CanvasEvents = {
-	objectTap: (input: CanvasGestureInput) => void;
-	objectDragStart: (info: CanvasGestureInput) => void;
-	objectDrag: (info: CanvasGestureInput) => void;
-	objectDragEnd: (info: CanvasGestureInput) => void;
+	claimedTap: (input: CanvasGestureInput) => void;
+	claimedDragStart: (info: CanvasGestureInput) => void;
+	claimedDrag: (info: CanvasGestureInput) => void;
+	claimedDragEnd: (info: CanvasGestureInput) => void;
 	canvasTap: (info: CanvasGestureInfo) => void;
 	canvasDragStart: (info: CanvasGestureInfo) => void;
 	canvasDrag: (info: CanvasGestureInfo) => void;
@@ -213,22 +213,22 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 		this.emit('canvasDragEnd', this.inputToInfo(info));
 	};
 
-	onObjectTap = (input: CanvasGestureInput) => {
+	onClaimedTap = (input: CanvasGestureInput) => {
 		const gestureInfo = this.transformGesture(input);
-		this.emit('objectTap', gestureInfo);
+		this.emit('claimedTap', gestureInfo);
 	};
 
-	onObjectDragStart = (input: CanvasGestureInput) => {
+	onClaimedDragStart = (input: CanvasGestureInput) => {
 		const gestureInfo = this.transformGesture(input);
-		this.emit('objectDragStart', gestureInfo);
+		this.emit('claimedDragStart', gestureInfo);
 	};
-	onObjectDrag = (input: CanvasGestureInput) => {
+	onClaimedDrag = (input: CanvasGestureInput) => {
 		const gestureInfo = this.transformGesture(input);
-		this.emit('objectDrag', gestureInfo);
+		this.emit('claimedDrag', gestureInfo);
 	};
-	onObjectDragEnd = (input: CanvasGestureInput) => {
+	onClaimedDragEnd = (input: CanvasGestureInput) => {
 		const gestureInfo = this.transformGesture(input);
-		this.emit('objectDragEnd', gestureInfo);
+		this.emit('claimedDragEnd', gestureInfo);
 	};
 
 	getContainerCandidate = (

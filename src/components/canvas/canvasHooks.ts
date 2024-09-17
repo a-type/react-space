@@ -95,7 +95,7 @@ export function useCanvasGestures(handlers: {
 	}, [canvas]);
 }
 
-export function useObjectGestures(
+export function useClaimedGestures(
 	handlers: {
 		onDragStart?: (info: CanvasGestureInput) => void;
 		onDrag?: (info: CanvasGestureInput) => void;
@@ -110,25 +110,25 @@ export function useObjectGestures(
 
 	useEffect(() => {
 		const unsubs = [
-			canvas.subscribe('objectDragStart', (info) => {
+			canvas.subscribe('claimedDragStart', (info) => {
 				const selected = canvas.selections.selectedIds.has(objectId);
 				if (selected || info.targetId === objectId) {
 					handlersRef.current.onDragStart?.(info);
 				}
 			}),
-			canvas.subscribe('objectDrag', (info) => {
+			canvas.subscribe('claimedDrag', (info) => {
 				const selected = canvas.selections.selectedIds.has(objectId);
 				if (selected || info.targetId === objectId) {
 					handlersRef.current.onDrag?.(info);
 				}
 			}),
-			canvas.subscribe('objectDragEnd', (info) => {
+			canvas.subscribe('claimedDragEnd', (info) => {
 				const selected = canvas.selections.selectedIds.has(objectId);
 				if (selected || info.targetId === objectId) {
 					handlersRef.current.onDragEnd?.(info);
 				}
 			}),
-			canvas.subscribe('objectTap', (info) => {
+			canvas.subscribe('claimedTap', (info) => {
 				if (info.targetId === objectId) {
 					handlersRef.current.onTap?.(info);
 				}
@@ -141,32 +141,22 @@ export function useObjectGestures(
 	}, [canvas, objectId]);
 }
 
-// TODO: convert to useSyncExternalStore
 export function useIsSelected(objectId: string) {
 	const canvas = useCanvas();
-	const [selected, setSelected] = useState(() =>
-		canvas.selections.selectedIds.has(objectId),
+	const selected = useSyncExternalStore(
+		(cb) => canvas.selections.subscribe(`change:${objectId}`, cb),
+		() => canvas.selections.selectedIds.has(objectId),
 	);
-	const [exclusive, setExclusive] = useState(
+	const exclusive = useSyncExternalStore(
+		(cb) => canvas.selections.subscribe('change', cb),
 		() =>
-			canvas.selections.selectedIds.has(objectId) &&
-			canvas.selections.selectedIds.size === 1,
+			canvas.selections.selectedIds.size === 1 &&
+			canvas.selections.selectedIds.has(objectId),
 	);
-	const [pending, setPending] = useState(() =>
-		canvas.selections.pendingIds.has(objectId),
+	const pending = useSyncExternalStore(
+		(cb) => canvas.selections.subscribe(`pendingChange:${objectId}`, cb),
+		() => canvas.selections.pendingIds.has(objectId),
 	);
-
-	useEffect(() => {
-		return canvas.selections.subscribe(`change:${objectId}`, setSelected);
-	}, [canvas.selections, objectId]);
-	useEffect(() => {
-		return canvas.selections.subscribe('change', (selectedIds) => {
-			setExclusive(selectedIds.length === 1 && selectedIds[0] === objectId);
-		});
-	}, [canvas.selections, objectId]);
-	useEffect(() => {
-		return canvas.selections.subscribe(`pendingChange:${objectId}`, setPending);
-	}, [canvas.selections, objectId]);
 
 	return { selected, exclusive, pending };
 }

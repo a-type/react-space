@@ -117,9 +117,8 @@ function useCanvasGestures({
 
 				applyGestureState(gestureInputEventRef.current, state, worldPosition);
 				if (isObjectOrToolGestureClaim() && gestureState.claimedBy) {
-					// TODO: simplify? seems like redundant handoff between states.
 					gestureInputEventRef.current.targetId = gestureState.claimedBy;
-					canvas.onObjectDragStart(gestureInputEventRef.current);
+					canvas.onClaimedDragStart(gestureInputEventRef.current);
 					autoPan.start(state.xy);
 				} else {
 					// claim unclaimed gestures by the time they reach the canvas
@@ -146,7 +145,7 @@ function useCanvasGestures({
 
 				if (isObjectOrToolGestureClaim() && gestureState.claimedBy) {
 					autoPan.update(state.xy);
-					canvas.onObjectDrag(gestureInputEventRef.current);
+					canvas.onClaimedDrag(gestureInputEventRef.current);
 				} else {
 					if (isDrag(gestureInputEventRef.current)) {
 						canvas.onCanvasDrag(gestureInputEventRef.current);
@@ -169,9 +168,9 @@ function useCanvasGestures({
 				);
 				if (isObjectOrToolGestureClaim() && gestureState.claimedBy) {
 					if (state.tap) {
-						canvas.onObjectTap(gestureInputEventRef.current);
+						canvas.onClaimedTap(gestureInputEventRef.current);
 					}
-					canvas.onObjectDragEnd(gestureInputEventRef.current);
+					canvas.onClaimedDragEnd(gestureInputEventRef.current);
 					// this gesture was claimed, but it's now over.
 					// we don't take action but we do reset the claim status
 					resetGestureState();
@@ -269,7 +268,7 @@ function useAutoPan(gestureInputRef: MutableRefObject<CanvasGestureInput>) {
 				gestureInputRef.current.pointerWorldPosition,
 				gestureInputRef.current.startPosition,
 			);
-			canvas.onObjectDrag(gestureInputRef.current);
+			canvas.onClaimedDrag(gestureInputRef.current);
 		});
 	}, [autoPan, canvas, displace, gestureInputRef]);
 

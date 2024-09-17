@@ -2,7 +2,7 @@ import { animated, useSpring } from '@react-spring/web';
 import { useId, useRef } from 'react';
 import { CanvasGestureInput } from '../../logic/Canvas.js';
 import { Vector2 } from '../../types.js';
-import { useObjectGestures } from '../canvas/canvasHooks.js';
+import { useClaimedGestures } from '../canvas/canvasHooks.js';
 import { useCanvas } from '../canvas/CanvasProvider.js';
 import {
 	claimGesture,
@@ -12,8 +12,8 @@ import {
 } from '../gestures/useGestureState.js';
 
 export interface BoxRegionProps {
-	onPending?: (objectIds: Set<string>, info: CanvasGestureInput) => void;
-	onEnd?: (objectIds: Set<string>, info: CanvasGestureInput) => void;
+	onPending?: (objectIds: Array<string>, info: CanvasGestureInput) => void;
+	onEnd?: (objectIds: Array<string>, info: CanvasGestureInput) => void;
 	tolerance?: number;
 	className?: string;
 	id?: string;
@@ -42,16 +42,16 @@ export function BoxRegion({
 	}));
 	const originRef = useRef<Vector2>({ x: 0, y: 0 });
 
-	const previousPending = useRef<Set<string>>(new Set<string>());
+	const previousPending = useRef<Array<string>>(new Array<string>());
 
 	const canvas = useCanvas();
 
 	const claimProps = useClaimGesture('tool', id, filter, { onCanvas: true });
 
-	useObjectGestures(
+	useClaimedGestures(
 		{
 			onDragStart: (input) => {
-				previousPending.current = new Set<string>();
+				previousPending.current.length = 0;
 				originRef.current = input.pointerWorldPosition;
 				spring.set({
 					x: input.pointerWorldPosition.x,
@@ -59,14 +59,8 @@ export function BoxRegion({
 					width: 0,
 					height: 0,
 				});
-				claimGesture('object', id);
 			},
 			onDrag: (input) => {
-				// TODO: build this into useCanvasGestures?
-				if (!hasClaim('object', id)) {
-					return;
-				}
-
 				const rect = {
 					x: Math.min(input.pointerWorldPosition.x, originRef.current.x),
 					y: Math.min(input.pointerWorldPosition.y, originRef.current.y),
@@ -79,18 +73,17 @@ export function BoxRegion({
 					tolerance,
 					(data) => data.type === 'object',
 				);
-				// TODO: make more efficient, this is just adapting old code.
-				const objectIds = new Set(entries.map((entry) => entry.id));
+				const objectIds = entries.map((entry) => entry.id);
 				// this is all just logic to diff as much as possible...
-				if (objectIds.size !== previousPending.current.size) {
+				if (objectIds.length !== previousPending.current.length) {
 					onPending?.(objectIds, input);
-				} else if (objectIds.size === 0) {
-					if (previousPending.current.size !== 0) {
+				} else if (objectIds.length === 0) {
+					if (previousPending.current.length !== 0) {
 						onPending?.(objectIds, input);
 					}
 				} else {
 					for (const entry of objectIds) {
-						if (!previousPending.current.has(entry)) {
+						if (!previousPending.current.includes(entry)) {
 							onPending?.(objectIds, input);
 							break;
 						}
@@ -100,10 +93,6 @@ export function BoxRegion({
 				previousPending.current = objectIds;
 			},
 			onDragEnd: (input) => {
-				if (!hasClaim('object', id)) {
-					return;
-				}
-
 				const entries = canvas.bounds.getIntersections(
 					{
 						x: x.get(),
@@ -114,10 +103,9 @@ export function BoxRegion({
 					tolerance,
 					(data) => data.type === 'object',
 				);
-				// TODO: make more efficient, this is just adapting old code.
-				const objectIds = new Set(entries.map((entry) => entry.id));
+				const objectIds = entries.map((entry) => entry.id);
 
-				previousPending.current.clear();
+				previousPending.current.length = 0;
 				onPending?.(previousPending.current, input);
 				onCommit?.(objectIds, input);
 

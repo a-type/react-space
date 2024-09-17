@@ -6,7 +6,7 @@ import { GestureClaimDetail } from '../gestures/useGestureState.js';
 
 export interface BoxSelectProps {
 	className?: string;
-	onCommit?: (objectIds: Set<string>, endPosition: Vector2) => void;
+	onCommit?: (objectIds: Array<string>, endPosition: Vector2) => void;
 }
 
 export function BoxSelect({ className, onCommit }: BoxSelectProps) {

@@ -223,7 +223,7 @@ function AutonomousNode({
 					y: initialPosition.y + Math.random() * 200 - 100,
 				},
 			});
-		}, 1000);
+		}, 5000);
 		return () => {
 			clearInterval(interval);
 		};
@@ -231,9 +231,9 @@ function AutonomousNode({
 
 	return (
 		<Object className="node" value={canvasObject}>
-			<div className="handle" style={{ width: size, height: size }}>
+			<ObjectHandle className="handle" style={{ width: size, height: size }}>
 				{children}
-			</div>
+			</ObjectHandle>
 		</Object>
 	);
 }

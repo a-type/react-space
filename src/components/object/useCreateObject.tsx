@@ -32,7 +32,7 @@ export interface CanvasObject<Metadata = any> {
 	ref: Ref<HTMLDivElement>;
 	draggingSignal: Atom<boolean>;
 	blockInteractionSignal: Atom<boolean>;
-	update: (updates: RegistryTransformInit) => void;
+	update: (updates: Omit<RegistryTransformInit, 'size'>) => void;
 	metadataRef: RefObject<Metadata | undefined>;
 	entry: BoundsRegistryEntry<ObjectData<Metadata>>;
 	[CONTAINER_STATE]: Atom<{ overId: string | null; accepted: boolean }>;
@@ -132,7 +132,6 @@ export function useCreateObject<Metadata = any>({
 	// I'm kinda using this pattern a lot... might be dangerous.
 	const metadataRef = useRef(metadata);
 	metadataRef.current = metadata;
-
 	const disableSelect = useRef(disableSelectValue);
 	disableSelect.current = disableSelectValue;
 
@@ -150,8 +149,23 @@ export function useCreateObject<Metadata = any>({
 				})) as BoundsRegistryEntry<ObjectData<Metadata>>,
 	);
 
+	// external calls to update are prevented during drag. any calls need to be
+	// remembered, though, so they can be applied if the drag is reverted.
+	const preventedExternalUpdateRef = useRef<{
+		prevented?: RegistryTransformInit;
+		active: boolean;
+	}>({
+		prevented: undefined,
+		active: false,
+	});
+
 	const update = useCallback(
 		(changes: RegistryTransformInit) => {
+			if (preventedExternalUpdateRef.current.active) {
+				preventedExternalUpdateRef.current.prevented = changes;
+				return;
+			}
+
 			const changesAsFulfilled: Omit<TransformInit, 'id'> = changes as any;
 			if (changes.parent) {
 				const parent = canvas.bounds.get(changes.parent);
@@ -314,10 +328,14 @@ export function useCreateObject<Metadata = any>({
 					gestureEventRef.current.containerId = undefined;
 					gestureEventRef.current.rejectedContainerId = undefined;
 				}
+
+				// bypass external update block (works because following code is sync)
+				preventedExternalUpdateRef.current.active = false;
 				onDrag?.(gestureEventRef.current, object, canvas);
 				if (!gestureEventRef.current.defaultPrevented) {
 					defaultOnDrag(gestureEventRef.current, object, canvas);
 				}
+				preventedExternalUpdateRef.current.active = true;
 			},
 			onDragEnd(input) {
 				// if any parent is included in selection, ignore this gesture entirely
@@ -360,11 +378,20 @@ export function useCreateObject<Metadata = any>({
 						);
 					}
 					transact(() => {
+						// bypass external update block (works because following code is sync)
+						preventedExternalUpdateRef.current.active = false;
+						// now's the time to apply any prevented external updates -- then user updates overwrite them.
+						if (preventedExternalUpdateRef.current.prevented) {
+							update(preventedExternalUpdateRef.current.prevented);
+							preventedExternalUpdateRef.current.prevented = undefined;
+						}
 						onDrop?.(gestureEventRef.current, object, canvas);
 						if (!gestureEventRef.current.defaultPrevented) {
 							defaultOnDrop(gestureEventRef.current, object, canvas);
 						}
 						entry.transform.discardGestureOffset();
+						// don't turn prevent external updates back on.
+						preventedExternalUpdateRef.current.prevented = undefined;
 					});
 				}
 

@@ -6,7 +6,7 @@ import {
 	useRef,
 	useSyncExternalStore,
 } from 'react';
-import { Atom } from 'signia';
+import { Atom, transact } from 'signia';
 import { useAtom } from 'signia-react';
 import {
 	BoundsRegistryEntry,
@@ -14,6 +14,7 @@ import {
 } from '../../logic/BoundsRegistry.js';
 import {
 	Canvas,
+	CanvasGestureEvent,
 	CanvasGestureInfo,
 	CanvasGestureInput,
 	ContainerData,
@@ -41,17 +42,25 @@ const empty = {};
 
 const objectRegistry: Record<string, boolean> = {};
 
-function defaultOnDrag(info: CanvasGestureInfo, self: CanvasObject) {}
+function defaultOnDrag(
+	_info: CanvasGestureEvent,
+	_self: CanvasObject,
+	_canvas: Canvas,
+) {}
 
-function defaultOnDrop(info: CanvasGestureInfo, self: CanvasObject) {
+function defaultOnDrop(
+	info: CanvasGestureEvent,
+	self: CanvasObject,
+	_canvas: Canvas,
+) {
 	self.update({
 		parent: info.containerId,
-		position: info.worldPosition,
+		position: info.position,
 	});
 }
 
 function defaultOnTap(
-	info: CanvasGestureInfo,
+	info: CanvasGestureEvent,
 	self: CanvasObject,
 	canvas: Canvas,
 ) {
@@ -66,25 +75,25 @@ export function useCreateObject<Metadata = any>({
 	id,
 	initialTransform = empty,
 	metadata,
-	onDrag = defaultOnDrag,
-	onDrop = defaultOnDrop,
-	onTap = defaultOnTap,
+	onDrag,
+	onDrop,
+	onTap,
 }: {
 	id: string;
 	initialTransform?: Omit<RegistryTransformInit, 'size'>;
 	metadata?: Metadata;
 	onDrag?: (
-		event: CanvasGestureInfo,
+		event: CanvasGestureEvent,
 		self: CanvasObject,
 		canvas: Canvas,
 	) => void;
 	onDrop?: (
-		event: CanvasGestureInfo,
+		event: CanvasGestureEvent,
 		self: CanvasObject,
 		canvas: Canvas,
 	) => void;
 	onTap?: (
-		event: CanvasGestureInfo,
+		event: CanvasGestureEvent,
 		self: CanvasObject,
 		canvas: Canvas,
 	) => void;
@@ -149,7 +158,8 @@ export function useCreateObject<Metadata = any>({
 		[entry, canvas],
 	);
 
-	const [gestureInfoRef, resetGestureInfo, copyInfoFrom] = useGestureInfo();
+	const [gestureEventRef, resetGestureEvent, copyEventFromInput] =
+		useGestureEvent();
 
 	// must track this independently of gesture info, because
 	// we also need to track and clean up non-accepted container references...
@@ -184,7 +194,8 @@ export function useCreateObject<Metadata = any>({
 					}
 				}
 
-				copyInfoFrom(input);
+				copyEventFromInput(input);
+				gestureEventRef.current.defaultPrevented = false;
 			},
 			onDrag(input) {
 				// if any parent is included in selection, ignore this gesture entirely
@@ -198,11 +209,10 @@ export function useCreateObject<Metadata = any>({
 				}
 
 				// DO THESE EVERY GESTURE FRAME...
-				copyInfoFrom(input);
+				copyEventFromInput(input);
+				gestureEventRef.current.defaultPrevented = false;
 				// update position (local position will be overridden in container check below)
-				gestureInfoRef.current.worldPosition =
-					entry.transform.worldPosition.value;
-				gestureInfoRef.current.position = gestureInfoRef.current.worldPosition;
+				gestureEventRef.current.position = entry.transform.worldPosition.value;
 
 				if (!isDrag(input)) {
 					return;
@@ -250,11 +260,11 @@ export function useCreateObject<Metadata = any>({
 						// also update object's own state
 						containerState.set({ overId: container.id });
 						// add container to gesture info
-						gestureInfoRef.current.containerId = container.id;
-						gestureInfoRef.current.position = subtractVectors(
-							entry.transform.worldPosition.value,
-							container.transform.worldOrigin.value,
-						);
+						gestureEventRef.current.containerId = container.id;
+						// gestureInfoRef.current.position = subtractVectors(
+						// 	entry.transform.worldPosition.value,
+						// 	container.transform.worldOrigin.value,
+						// );
 					}
 					// always set, no matter if accepted or not.
 					containerCandidateRef.current = container;
@@ -273,9 +283,12 @@ export function useCreateObject<Metadata = any>({
 						containerState.set({ overId: null });
 						containerCandidateRef.current = null;
 					}
-					gestureInfoRef.current.containerId = undefined;
+					gestureEventRef.current.containerId = undefined;
 				}
-				(onDrag ?? defaultOnDrag)(gestureInfoRef.current, object, canvas);
+				onDrag?.(gestureEventRef.current, object, canvas);
+				if (!gestureEventRef.current.defaultPrevented) {
+					defaultOnDrag(gestureEventRef.current, object, canvas);
+				}
 			},
 			onDragEnd(input) {
 				// if any parent is included in selection, ignore this gesture entirely
@@ -289,17 +302,18 @@ export function useCreateObject<Metadata = any>({
 				}
 
 				// DO THESE EVERY GESTURE FRAME...
-				copyInfoFrom(input);
+				copyEventFromInput(input);
+				gestureEventRef.current.defaultPrevented = false;
 				draggingSignal.set(false);
-				entry.transform.applyGestureOffset();
-				gestureInfoRef.current.worldPosition =
-					entry.transform.worldPosition.value;
-				gestureInfoRef.current.position = gestureInfoRef.current.worldPosition;
+				gestureEventRef.current.position = entry.transform.worldPosition.value;
 
 				if (!isDrag(input)) {
 					// just in case.
 					blockInteractionSignal.set(false);
-					onTap?.(gestureInfoRef.current, object, canvas);
+					onTap?.(gestureEventRef.current, object, canvas);
+					if (!gestureEventRef.current.defaultPrevented) {
+						defaultOnTap(gestureEventRef.current, object, canvas);
+					}
 					return;
 				} else {
 					// ONLY ON CONFIRMED DRAGS.
@@ -316,19 +330,25 @@ export function useCreateObject<Metadata = any>({
 							v.filter((o) => o.objectId !== entry.id),
 						);
 
-						// one more computation for good measure (but only if accepted)
-						if (gestureInfoRef.current.containerId === container.id) {
-							gestureInfoRef.current.position = subtractVectors(
-								entry.transform.worldPosition.value,
-								container.transform.worldOrigin.value,
-							);
-						}
+						// // one more computation for good measure (but only if accepted)
+						// if (gestureInfoRef.current.containerId === container.id) {
+						// 	gestureInfoRef.current.position = subtractVectors(
+						// 		entry.transform.worldPosition.value,
+						// 		container.transform.worldOrigin.value,
+						// 	);
+						// }
 					}
-					(onDrop ?? defaultOnDrop)(gestureInfoRef.current, object, canvas);
+					transact(() => {
+						onDrop?.(gestureEventRef.current, object, canvas);
+						if (!gestureEventRef.current.defaultPrevented) {
+							defaultOnDrop(gestureEventRef.current, object, canvas);
+						}
+						entry.transform.discardGestureOffset();
+					});
 				}
 
 				// reset for next gesture
-				resetGestureInfo();
+				resetGestureEvent();
 				containerCandidateRef.current = null;
 			},
 		},
@@ -349,18 +369,21 @@ export function useCreateObject<Metadata = any>({
 	return object;
 }
 
-function useGestureInfo() {
-	const ref = useRef<CanvasGestureInfo>({
+function useGestureEvent() {
+	const ref = useRef<CanvasGestureEvent>({
 		alt: false,
 		ctrlOrMeta: false,
 		shift: false,
 		distance: { x: 0, y: 0 },
 		intentional: false,
-		worldPosition: { x: 0, y: 0 },
 		targetId: '',
 		containerId: undefined,
 		position: { x: 0, y: 0 },
 		inputType: 'unknown',
+		preventDefault: () => {
+			ref.current.defaultPrevented = true;
+		},
+		defaultPrevented: false,
 	});
 
 	const reset = useCallback(() => {
@@ -369,10 +392,11 @@ function useGestureInfo() {
 		ref.current.shift = false;
 		ref.current.distance = { x: 0, y: 0 };
 		ref.current.intentional = false;
-		ref.current.worldPosition = { x: 0, y: 0 };
 		ref.current.targetId = '';
 		ref.current.containerId = undefined;
 		ref.current.position = { x: 0, y: 0 };
+		ref.current.inputType = 'unknown';
+		ref.current.defaultPrevented = false;
 	}, []);
 
 	const copyFrom = useCallback((info: CanvasGestureInput) => {

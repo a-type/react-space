@@ -123,7 +123,11 @@ export class Transform {
 			const parent = this.parent.value;
 			const position = this.position.value;
 			const offset = this.gestureOffset.value;
-			if (!parent) return position;
+			if (!parent)
+				return {
+					x: position.x + offset.x,
+					y: position.y + offset.y,
+				};
 			const parentOrigin = parent.worldOrigin.value;
 			return {
 				x: parentOrigin.x + position.x + offset.x,
@@ -225,6 +229,13 @@ export class Transform {
 		this.inputs.update((inputs) => ({
 			...inputs,
 			position: addVectors(inputs.position, inputs.gestureOffset),
+			gestureOffset: { x: 0, y: 0 },
+		}));
+	};
+
+	discardGestureOffset = () => {
+		this.inputs.update((inputs) => ({
+			...inputs,
 			gestureOffset: { x: 0, y: 0 },
 		}));
 	};

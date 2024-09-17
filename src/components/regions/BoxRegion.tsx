@@ -1,17 +1,15 @@
-import { useSpring, animated } from '@react-spring/web';
-import { useCanvasGestures, useObjectGestures } from '../canvas/canvasHooks.js';
-import { PointerEvent, useId, useRef } from 'react';
+import { animated, useSpring } from '@react-spring/web';
+import { useId, useRef } from 'react';
+import { CanvasGestureInput } from '../../logic/Canvas.js';
 import { Vector2 } from '../../types.js';
-import { CanvasGestureInfo, CanvasGestureInput } from '../../logic/Canvas.js';
+import { useObjectGestures } from '../canvas/canvasHooks.js';
 import { useCanvas } from '../canvas/CanvasProvider.js';
 import {
 	claimGesture,
 	GestureClaimDetail,
-	gestureState,
 	hasClaim,
 	useClaimGesture,
 } from '../gestures/useGestureState.js';
-import { isLeftClick } from '@a-type/utils';
 
 export interface BoxRegionProps {
 	onPending?: (objectIds: Set<string>, info: CanvasGestureInput) => void;

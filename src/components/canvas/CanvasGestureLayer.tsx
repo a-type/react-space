@@ -9,7 +9,11 @@ import {
 	useRef,
 } from 'react';
 import { AutoPan } from '../../logic/AutoPan.js';
-import { Canvas, CanvasGestureInput } from '../../logic/Canvas.js';
+import {
+	Canvas,
+	CanvasGestureInput,
+	CanvasGestureInputEvent,
+} from '../../logic/Canvas.js';
 import {
 	applyGestureState,
 	isDrag,
@@ -36,9 +40,9 @@ import { useMergedRef } from '../../hooks.js';
 
 export interface CanvasGestureLayerProps
 	extends Omit<HTMLAttributes<HTMLDivElement>, 'onDrag' | 'onDragEnd'> {
-	onDrag?: (info: CanvasGestureInput, canvas: Canvas) => boolean | void;
-	onDragEnd?: (info: CanvasGestureInput, canvas: Canvas) => boolean | void;
-	onTap?: (info: CanvasGestureInput, canvas: Canvas) => boolean | void;
+	onDrag?: (info: CanvasGestureInputEvent, canvas: Canvas) => void;
+	onDragEnd?: (info: CanvasGestureInputEvent, canvas: Canvas) => void;
+	onTap?: (info: CanvasGestureInputEvent, canvas: Canvas) => void;
 }
 
 export const CanvasGestureLayer = forwardRef<
@@ -51,8 +55,9 @@ export const CanvasGestureLayer = forwardRef<
 	return <div ref={finalRef} {...props} {...gestureProps} />;
 });
 
-function defaultOnDrag(info: CanvasGestureInput, canvas: Canvas) {
+function defaultOnDrag(info: CanvasGestureInputEvent, canvas: Canvas) {
 	if (info.inputType === 'mouse3') {
+		canvas.gestureLayerRef.current?.style.setProperty('cursor', 'grabbing');
 		canvas.viewport.relativePan(
 			canvas.viewport.viewportDeltaToWorld(
 				multiplyVector(info.screenDelta, -1),
@@ -60,8 +65,11 @@ function defaultOnDrag(info: CanvasGestureInput, canvas: Canvas) {
 		);
 	}
 }
+function defaultOnDragEnd(info: CanvasGestureInputEvent, canvas: Canvas) {
+	canvas.gestureLayerRef.current?.style.setProperty('cursor', 'crosshair');
+}
 
-function defaultOnTap(info: CanvasGestureInput, canvas: Canvas) {
+function defaultOnTap(info: CanvasGestureInputEvent, canvas: Canvas) {
 	if (!info.shift) {
 		canvas.selections.clear();
 	}
@@ -78,25 +86,26 @@ function useCanvasGestures({
 		isTouch: false,
 	});
 
-	const [gestureInputRef, resetGestureInput] = useGestureInput();
-	const autoPan = useAutoPan(gestureInputRef);
+	const [gestureInputEventRef, resetGestureInputEvent] = useGestureInputEvent();
+	const autoPan = useAutoPan(gestureInputEventRef);
 
 	const bindPassiveGestures = useGesture(
 		{
 			onDragStart: (state) => {
 				gestureDetails.current.isTouch = isTouchEvent(state.event);
 				gestureDetails.current.buttons = state.buttons;
+				gestureInputEventRef.current.defaultPrevented = false;
 
-				gestureInputRef.current.inputType = 'unknown';
+				gestureInputEventRef.current.inputType = 'unknown';
 				if (isTouchEvent(state.event)) {
-					gestureInputRef.current.inputType = 'touch';
+					gestureInputEventRef.current.inputType = 'touch';
 				} else if (isMouseEvent(state.event)) {
 					if (isLeftButton(state.buttons)) {
-						gestureInputRef.current.inputType = 'mouse1';
+						gestureInputEventRef.current.inputType = 'mouse1';
 					} else if (isRightButton(state.buttons)) {
-						gestureInputRef.current.inputType = 'mouse2';
+						gestureInputEventRef.current.inputType = 'mouse2';
 					} else if (isMiddleButton(state.buttons)) {
-						gestureInputRef.current.inputType = 'mouse3';
+						gestureInputEventRef.current.inputType = 'mouse3';
 					}
 				}
 
@@ -104,19 +113,19 @@ function useCanvasGestures({
 					x: state.xy[0],
 					y: state.xy[1],
 				});
-				gestureInputRef.current.startPosition = worldPosition;
+				gestureInputEventRef.current.startPosition = worldPosition;
 
-				applyGestureState(gestureInputRef.current, state, worldPosition);
+				applyGestureState(gestureInputEventRef.current, state, worldPosition);
 				if (isObjectOrToolGestureClaim() && gestureState.claimedBy) {
 					// TODO: simplify? seems like redundant handoff between states.
-					gestureInputRef.current.targetId = gestureState.claimedBy;
-					canvas.onObjectDragStart(gestureInputRef.current);
+					gestureInputEventRef.current.targetId = gestureState.claimedBy;
+					canvas.onObjectDragStart(gestureInputEventRef.current);
 					autoPan.start(state.xy);
 				} else {
 					// claim unclaimed gestures by the time they reach the canvas
-					gestureInputRef.current.targetId = undefined;
+					gestureInputEventRef.current.targetId = undefined;
 					claimGesture('canvas');
-					canvas.onCanvasDragStart(gestureInputRef.current);
+					canvas.onCanvasDragStart(gestureInputEventRef.current);
 				}
 			},
 			onDrag: (state) => {
@@ -124,9 +133,10 @@ function useCanvasGestures({
 					gestureDetails.current.buttons = state.buttons;
 					gestureDetails.current.isTouch = isTouchEvent(state.event);
 				}
+				gestureInputEventRef.current.defaultPrevented = false;
 
 				applyGestureState(
-					gestureInputRef.current,
+					gestureInputEventRef.current,
 					state,
 					canvas.viewport.viewportToWorld({
 						x: state.xy[0],
@@ -136,20 +146,21 @@ function useCanvasGestures({
 
 				if (isObjectOrToolGestureClaim() && gestureState.claimedBy) {
 					autoPan.update(state.xy);
-					canvas.onObjectDrag(gestureInputRef.current);
+					canvas.onObjectDrag(gestureInputEventRef.current);
 				} else {
-					if (isDrag(gestureInputRef.current)) {
-						canvas.onCanvasDrag(gestureInputRef.current);
-						const preventDefault = !!onDrag?.(gestureInputRef.current, canvas);
-						if (!preventDefault) {
-							defaultOnDrag(gestureInputRef.current, canvas);
+					if (isDrag(gestureInputEventRef.current)) {
+						canvas.onCanvasDrag(gestureInputEventRef.current);
+						onDrag?.(gestureInputEventRef.current, canvas);
+						if (!gestureInputEventRef.current.defaultPrevented) {
+							defaultOnDrag(gestureInputEventRef.current, canvas);
 						}
 					}
 				}
 			},
 			onDragEnd: (state) => {
+				gestureInputEventRef.current.defaultPrevented = false;
 				applyGestureState(
-					gestureInputRef.current,
+					gestureInputEventRef.current,
 					state,
 					canvas.viewport.viewportToWorld({
 						x: state.xy[0],
@@ -158,29 +169,26 @@ function useCanvasGestures({
 				);
 				if (isObjectOrToolGestureClaim() && gestureState.claimedBy) {
 					if (state.tap) {
-						canvas.onObjectTap(gestureInputRef.current);
+						canvas.onObjectTap(gestureInputEventRef.current);
 					}
-					canvas.onObjectDragEnd(gestureInputRef.current);
+					canvas.onObjectDragEnd(gestureInputEventRef.current);
 					// this gesture was claimed, but it's now over.
 					// we don't take action but we do reset the claim status
 					resetGestureState();
 				} else {
 					// tap is triggered either by left click, or on touchscreens.
 					// tap must fire before drag end.
-					if (isDrag(gestureInputRef.current)) {
-						canvas.onCanvasDragEnd(gestureInputRef.current);
-						const preventDefault = !!onDragEnd?.(
-							gestureInputRef.current,
-							canvas,
-						);
-						if (!preventDefault) {
-							defaultOnDrag(gestureInputRef.current, canvas);
+					if (isDrag(gestureInputEventRef.current)) {
+						canvas.onCanvasDragEnd(gestureInputEventRef.current);
+						onDragEnd?.(gestureInputEventRef.current, canvas);
+						if (!gestureInputEventRef.current.defaultPrevented) {
+							defaultOnDragEnd(gestureInputEventRef.current, canvas);
 						}
 					} else {
-						canvas.onCanvasTap(gestureInputRef.current);
-						const preventDefault = !!onTap?.(gestureInputRef.current, canvas);
-						if (!preventDefault) {
-							defaultOnTap(gestureInputRef.current, canvas);
+						canvas.onCanvasTap(gestureInputEventRef.current);
+						onTap?.(gestureInputEventRef.current, canvas);
+						if (!gestureInputEventRef.current.defaultPrevented) {
+							defaultOnTap(gestureInputEventRef.current, canvas);
 						}
 					}
 				}
@@ -190,7 +198,7 @@ function useCanvasGestures({
 				gestureDetails.current.isTouch = false;
 
 				autoPan.stop();
-				resetGestureInput();
+				resetGestureInputEvent();
 			},
 			onContextMenu: ({ event }) => {
 				event.preventDefault();
@@ -208,8 +216,8 @@ function useCanvasGestures({
 	return bindPassiveGestures();
 }
 
-function useGestureInput() {
-	const ref = useRef<CanvasGestureInput>({
+function useGestureInputEvent() {
+	const ref = useRef<CanvasGestureInputEvent>({
 		alt: false,
 		shift: false,
 		ctrlOrMeta: false,
@@ -221,6 +229,10 @@ function useGestureInput() {
 		inputType: 'unknown',
 		screenDelta: { x: 0, y: 0 },
 		pointerWorldPosition: { x: 0, y: 0 },
+		defaultPrevented: false,
+		preventDefault() {
+			ref.current.defaultPrevented = true;
+		},
 	});
 
 	const reset = useCallback(() => {
@@ -231,6 +243,11 @@ function useGestureInput() {
 		ref.current.screenPosition = { x: 0, y: 0 };
 		ref.current.distance = { x: 0, y: 0 };
 		ref.current.targetId = undefined;
+		ref.current.startPosition = { x: 0, y: 0 };
+		ref.current.inputType = 'unknown';
+		ref.current.screenDelta = { x: 0, y: 0 };
+		ref.current.pointerWorldPosition = { x: 0, y: 0 };
+		ref.current.defaultPrevented = false;
 	}, []);
 	return [ref, reset] as const;
 }

@@ -149,11 +149,15 @@ function DemoNode({
 			position: initialPosition,
 			getOrigin,
 		},
+		// demonstrate callbacks can be added without interefering with
+		// inherent gesture behavior
+		onDrag: () => {
+			// too noisy to log here
+		},
+		onTap: () => {
+			console.log('tap on', id);
+		},
 		onDrop: (event, self) => {
-			self.update({
-				parent: event.containerId,
-				position: event.worldPosition,
-			});
 			console.log('drop on', event.containerId ?? 'canvas', event.position);
 		},
 	});
@@ -232,15 +236,7 @@ function MovableContainer({
 			position: initialPosition,
 		},
 		onDrop: (event, self) => {
-			self.update({
-				parent: event.containerId,
-				position: event.worldPosition,
-			});
-			console.log(
-				'drop on',
-				event.containerId ?? 'canvas',
-				event.worldPosition,
-			);
+			console.log('drop on', event.containerId ?? 'canvas', event.position);
 		},
 	});
 	const container = useCreateContainer({

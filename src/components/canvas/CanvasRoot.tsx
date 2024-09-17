@@ -17,6 +17,7 @@ const baseStyle: CSSProperties = {
 	touchAction: 'none',
 	width: `calc(var(--canvas-max-x,0) - var(--canvas-min-x,0))`,
 	height: `calc(var(--canvas-max-y,0) - var(--canvas-min-y,0))`,
+	cursor: 'crosshair',
 };
 
 const centererStyle: CSSProperties = {

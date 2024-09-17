@@ -29,10 +29,27 @@ export interface CanvasGestureInfo {
 	 * Total movement of gesture
 	 */
 	distance: Vector2;
-	worldPosition: Vector2;
 	targetId?: string;
 	containerId?: string;
 	position: Vector2;
+}
+export interface CanvasGestureInput
+	extends Omit<
+		CanvasGestureInfo,
+		'worldPosition' | 'position' | 'containerId'
+	> {
+	screenPosition: Vector2;
+	screenDelta: Vector2;
+	pointerWorldPosition: Vector2;
+	startPosition: Vector2;
+}
+export interface CanvasGestureEvent extends CanvasGestureInfo {
+	preventDefault: () => void;
+	defaultPrevented: boolean;
+}
+export interface CanvasGestureInputEvent extends CanvasGestureInput {
+	preventDefault: () => void;
+	defaultPrevented: boolean;
 }
 
 export interface ObjectContainmentEvent<Metadata> {
@@ -46,17 +63,6 @@ export interface ObjectContainmentEvent<Metadata> {
 export interface ObjectRegistration<Metadata> {
 	canContain?: (containmentEvent: ObjectContainmentEvent<Metadata>) => boolean;
 	containerPriority?: number;
-}
-
-export interface CanvasGestureInput
-	extends Omit<
-		CanvasGestureInfo,
-		'worldPosition' | 'position' | 'containerId'
-	> {
-	screenPosition: Vector2;
-	screenDelta: Vector2;
-	pointerWorldPosition: Vector2;
-	startPosition: Vector2;
 }
 
 const DEFAULT_LIMITS: RectLimits = {

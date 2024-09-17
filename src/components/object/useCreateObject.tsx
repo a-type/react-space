@@ -35,7 +35,7 @@ export interface CanvasObject<Metadata = any> {
 	update: (updates: Omit<RegistryTransformInit, 'size'>) => void;
 	metadataRef: RefObject<Metadata | undefined>;
 	entry: BoundsRegistryEntry<ObjectData<Metadata>>;
-	[CONTAINER_STATE]: Atom<{ overId: string | null }>;
+	[CONTAINER_STATE]: Atom<{ overId: string | null; accepted: boolean }>;
 }
 
 const empty = {};
@@ -53,10 +53,15 @@ function defaultOnDrop(
 	self: CanvasObject,
 	_canvas: Canvas,
 ) {
-	self.update({
-		parent: info.containerId,
-		position: info.position,
-	});
+	if (info.rejectedContainerId) {
+		// if we were rejected by a container, do nothing --
+		// this invalidates the move and resets to original position.
+	} else {
+		self.update({
+			parent: info.containerId,
+			position: info.position,
+		});
+	}
 }
 
 function defaultOnTap(
@@ -169,6 +174,7 @@ export function useCreateObject<Metadata = any>({
 
 	const containerState = useAtom(`${id}: container state`, { overId: null } as {
 		overId: string | null;
+		accepted: boolean;
 	});
 
 	useObjectGestures(
@@ -256,15 +262,13 @@ export function useCreateObject<Metadata = any>({
 						}
 						return [...v, { objectId: entry.id, accepted }];
 					});
+					// also update object's own state
+					containerState.set({ overId: container.id, accepted });
 					if (accepted) {
-						// also update object's own state
-						containerState.set({ overId: container.id });
 						// add container to gesture info
 						gestureEventRef.current.containerId = container.id;
-						// gestureInfoRef.current.position = subtractVectors(
-						// 	entry.transform.worldPosition.value,
-						// 	container.transform.worldOrigin.value,
-						// );
+					} else {
+						gestureEventRef.current.rejectedContainerId = container.id;
 					}
 					// always set, no matter if accepted or not.
 					containerCandidateRef.current = container;
@@ -280,10 +284,11 @@ export function useCreateObject<Metadata = any>({
 							return v;
 						});
 						// since we've left the container, reset our state
-						containerState.set({ overId: null });
+						containerState.set({ overId: null, accepted: false });
 						containerCandidateRef.current = null;
 					}
 					gestureEventRef.current.containerId = undefined;
+					gestureEventRef.current.rejectedContainerId = undefined;
 				}
 				onDrag?.(gestureEventRef.current, object, canvas);
 				if (!gestureEventRef.current.defaultPrevented) {
@@ -329,14 +334,6 @@ export function useCreateObject<Metadata = any>({
 						container.data.overState.update((v) =>
 							v.filter((o) => o.objectId !== entry.id),
 						);
-
-						// // one more computation for good measure (but only if accepted)
-						// if (gestureInfoRef.current.containerId === container.id) {
-						// 	gestureInfoRef.current.position = subtractVectors(
-						// 		entry.transform.worldPosition.value,
-						// 		container.transform.worldOrigin.value,
-						// 	);
-						// }
 					}
 					transact(() => {
 						onDrop?.(gestureEventRef.current, object, canvas);
@@ -394,6 +391,7 @@ function useGestureEvent() {
 		ref.current.intentional = false;
 		ref.current.targetId = '';
 		ref.current.containerId = undefined;
+		ref.current.rejectedContainerId = undefined;
 		ref.current.position = { x: 0, y: 0 };
 		ref.current.inputType = 'unknown';
 		ref.current.defaultPrevented = false;

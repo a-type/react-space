@@ -31,6 +31,7 @@ export interface CanvasGestureInfo {
 	distance: Vector2;
 	targetId?: string;
 	containerId?: string;
+	rejectedContainerId?: string;
 	position: Vector2;
 }
 export interface CanvasGestureInput

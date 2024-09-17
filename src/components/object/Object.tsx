@@ -83,14 +83,16 @@ export const Object = function Object({
 						...renderProps.style,
 					}}
 					{...(disableContentWrapper ? rest : {})}
-					data-object-over={!!containerState.overId}
+					data-container-over={!!containerState.overId}
+					data-container-accepted={!!containerState.accepted}
 				>
 					{disableContentWrapper ?
 						children
 					:	<div
 							data-purpose="object-content"
 							style={contentStyle}
-							data-object-over={!!containerState.overId}
+							data-container-over={!!containerState.overId}
+							data-container-accepted={!!containerState.accepted}
 							{...rest}
 						>
 							{children}

@@ -140,7 +140,7 @@ function useObjectRendering(
 
 	const positionProps = useLiveElementPosition<HTMLDivElement>(
 		renderedPosition,
-		object.draggingSignal,
+		object.blockInteractionSignal,
 	);
 
 	// while we're here, add additional style data

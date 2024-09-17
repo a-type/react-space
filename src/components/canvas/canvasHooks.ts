@@ -9,6 +9,7 @@ import {
 	ObjectData,
 } from '../../logic/Canvas.js';
 import { useCanvas } from './CanvasProvider.js';
+import { gestureState } from '../gestures/useGestureState.js';
 
 export function useObjectEntry(objectId: string) {
 	const canvas = useCanvas();
@@ -112,19 +113,28 @@ export function useClaimedGestures(
 		const unsubs = [
 			canvas.subscribe('claimedDragStart', (info) => {
 				const selected = canvas.selections.selectedIds.has(objectId);
-				if (selected || info.targetId === objectId) {
+				if (
+					(selected && gestureState.claimType === 'object') ||
+					info.targetId === objectId
+				) {
 					handlersRef.current.onDragStart?.(info);
 				}
 			}),
 			canvas.subscribe('claimedDrag', (info) => {
 				const selected = canvas.selections.selectedIds.has(objectId);
-				if (selected || info.targetId === objectId) {
+				if (
+					(selected && gestureState.claimType === 'object') ||
+					info.targetId === objectId
+				) {
 					handlersRef.current.onDrag?.(info);
 				}
 			}),
 			canvas.subscribe('claimedDragEnd', (info) => {
 				const selected = canvas.selections.selectedIds.has(objectId);
-				if (selected || info.targetId === objectId) {
+				if (
+					(selected && gestureState.claimType === 'object') ||
+					info.targetId === objectId
+				) {
 					handlersRef.current.onDragEnd?.(info);
 				}
 			}),

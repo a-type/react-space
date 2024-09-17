@@ -212,6 +212,7 @@ function AutonomousNode({
 			position: initialPosition,
 			size: { width: size, height: size },
 		},
+		disableSelect: true,
 	});
 
 	React.useEffect(() => {
@@ -226,7 +227,7 @@ function AutonomousNode({
 		return () => {
 			clearInterval(interval);
 		};
-	}, [canvasObject]);
+	}, [canvasObject.update, initialPosition]);
 
 	return (
 		<Object className="node" value={canvasObject}>

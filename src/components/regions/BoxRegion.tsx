@@ -1,6 +1,10 @@
 import { animated, useSpring } from '@react-spring/web';
 import { useId, useRef } from 'react';
-import { CanvasGestureInput } from '../../logic/Canvas.js';
+import {
+	CanvasGestureInput,
+	ContainerData,
+	ObjectData,
+} from '../../logic/Canvas.js';
 import { Vector2 } from '../../types.js';
 import { useClaimedGestures } from '../canvas/canvasHooks.js';
 import { useCanvas } from '../canvas/CanvasProvider.js';
@@ -10,6 +14,7 @@ import {
 	hasClaim,
 	useClaimGesture,
 } from '../gestures/useGestureState.js';
+import { BoundsRegistryEntry } from '../../logic/BoundsRegistry.js';
 
 export interface BoxRegionProps {
 	onPending?: (objectIds: Array<string>, info: CanvasGestureInput) => void;
@@ -17,10 +22,15 @@ export interface BoxRegionProps {
 	tolerance?: number;
 	className?: string;
 	id?: string;
-	filter?: (event: GestureClaimDetail) => boolean;
+	claimGesture?: (event: GestureClaimDetail) => boolean;
+	filter?: BoxRegionFilterFn;
 }
 
-const defaultFilter = (event: GestureClaimDetail) => {
+export type BoxRegionFilterFn = (
+	entry: BoundsRegistryEntry<ObjectData<any> | ContainerData<any>>,
+) => boolean;
+
+const defaultClaim = (event: GestureClaimDetail) => {
 	return event.isLeftMouse || event.isTouch;
 };
 
@@ -30,7 +40,8 @@ export function BoxRegion({
 	onEnd: onCommit,
 	className,
 	id: userId,
-	filter = defaultFilter,
+	claimGesture: claim = defaultClaim,
+	filter,
 }: BoxRegionProps) {
 	const generatedId = useId();
 	const id = userId ?? generatedId;
@@ -46,7 +57,7 @@ export function BoxRegion({
 
 	const canvas = useCanvas();
 
-	const claimProps = useClaimGesture('tool', id, filter, { onCanvas: true });
+	const claimProps = useClaimGesture('tool', id, claim, { onCanvas: true });
 
 	useClaimedGestures(
 		{
@@ -68,11 +79,14 @@ export function BoxRegion({
 					height: Math.abs(input.pointerWorldPosition.y - originRef.current.y),
 				};
 				spring.set(rect);
-				const entries = canvas.bounds.getIntersections(
+				let entries = canvas.bounds.getIntersections(
 					rect,
 					tolerance,
 					(data) => data.type === 'object',
 				);
+				if (filter) {
+					entries = entries.filter(filter);
+				}
 				const objectIds = entries.map((entry) => entry.id);
 				// this is all just logic to diff as much as possible...
 				if (objectIds.length !== previousPending.current.length) {
@@ -93,7 +107,7 @@ export function BoxRegion({
 				previousPending.current = objectIds;
 			},
 			onDragEnd: (input) => {
-				const entries = canvas.bounds.getIntersections(
+				let entries = canvas.bounds.getIntersections(
 					{
 						x: x.get(),
 						y: y.get(),
@@ -103,6 +117,9 @@ export function BoxRegion({
 					tolerance,
 					(data) => data.type === 'object',
 				);
+				if (filter) {
+					entries = entries.filter(filter);
+				}
 				const objectIds = entries.map((entry) => entry.id);
 
 				previousPending.current.length = 0;

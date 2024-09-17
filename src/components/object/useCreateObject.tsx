@@ -36,6 +36,7 @@ export interface CanvasObject<Metadata = any> {
 	metadataRef: RefObject<Metadata | undefined>;
 	entry: BoundsRegistryEntry<ObjectData<Metadata>>;
 	[CONTAINER_STATE]: Atom<{ overId: string | null; accepted: boolean }>;
+	disableSelect: RefObject<boolean>;
 }
 
 const empty = {};
@@ -69,6 +70,8 @@ function defaultOnTap(
 	self: CanvasObject,
 	canvas: Canvas,
 ) {
+	if (self.disableSelect.current) return;
+
 	if (info.shift || info.ctrlOrMeta) {
 		canvas.selections.add(self.id);
 	} else {
@@ -83,6 +86,7 @@ export function useCreateObject<Metadata = any>({
 	onDrag,
 	onDrop,
 	onTap,
+	disableSelect: disableSelectValue = false,
 }: {
 	id: string;
 	initialTransform?: RegistryTransformInit;
@@ -102,6 +106,7 @@ export function useCreateObject<Metadata = any>({
 		self: CanvasObject,
 		canvas: Canvas,
 	) => void;
+	disableSelect?: boolean;
 }): CanvasObject<Metadata> {
 	const canvas = useCanvas();
 
@@ -124,8 +129,13 @@ export function useCreateObject<Metadata = any>({
 		false,
 	);
 
+	// I'm kinda using this pattern a lot... might be dangerous.
 	const metadataRef = useRef(metadata);
 	metadataRef.current = metadata;
+
+	const disableSelect = useRef(disableSelectValue);
+	disableSelect.current = disableSelectValue;
+
 	const entry = useSyncExternalStore(
 		(cb) =>
 			canvas.bounds.subscribe('entryReplaced', (objId) => {
@@ -136,6 +146,7 @@ export function useCreateObject<Metadata = any>({
 				canvas.bounds.register(id, initialTransform, {
 					type: 'object',
 					metadata: metadataRef,
+					disableSelect,
 				})) as BoundsRegistryEntry<ObjectData<Metadata>>,
 	);
 
@@ -176,6 +187,19 @@ export function useCreateObject<Metadata = any>({
 		overId: string | null;
 		accepted: boolean;
 	});
+
+	// should this be stabilized?
+	const object = {
+		id,
+		ref: entry.ref,
+		draggingSignal,
+		blockInteractionSignal,
+		metadataRef,
+		entry,
+		update,
+		disableSelect,
+		[CONTAINER_STATE]: containerState,
+	};
 
 	useClaimedGestures(
 		{
@@ -351,17 +375,6 @@ export function useCreateObject<Metadata = any>({
 		},
 		id,
 	);
-
-	const object = {
-		id,
-		ref: entry.ref,
-		draggingSignal,
-		blockInteractionSignal,
-		metadataRef,
-		entry,
-		update,
-		[CONTAINER_STATE]: containerState,
-	};
 
 	return object;
 }

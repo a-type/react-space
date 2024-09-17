@@ -87,6 +87,7 @@ export type CanvasEvents = {
 export type ObjectData<Metadata> = {
 	type: 'object';
 	metadata: RefObject<Metadata>;
+	disableSelect: RefObject<boolean>;
 };
 
 export type ContainerData<Metadata> = {

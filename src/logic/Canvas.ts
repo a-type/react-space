@@ -58,7 +58,6 @@ export interface ObjectContainmentEvent<Metadata> {
 	objectMetadata?: Metadata;
 	objectBounds: Box;
 	ownBounds: Box;
-	gestureInfo: CanvasGestureInfo;
 }
 
 export interface ObjectRegistration<Metadata> {
@@ -268,8 +267,6 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 				objectMetadata: metadata ?? undefined,
 				objectBounds: entry.transform.bounds.value,
 				ownBounds: winningContainer.transform.bounds.value,
-				// FIXME: allocation
-				gestureInfo: this.inputToInfo({ ...input }),
 			});
 
 		if (winningContainer) {

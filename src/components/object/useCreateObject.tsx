@@ -274,7 +274,7 @@ export function useCreateObject<Metadata = any>({
 					containerCandidateRef.current = container;
 				} else {
 					if (containerCandidateRef.current) {
-						// FIXME: repeated often, should be abstracted somewhere
+						// TODO: repeated often, should be abstracted somewhere
 						// reset container's state
 						containerCandidateRef.current.data.overState.update((v) => {
 							const index = v.findIndex((o) => o.objectId === entry.id);

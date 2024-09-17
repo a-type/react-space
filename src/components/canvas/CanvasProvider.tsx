@@ -17,9 +17,3 @@ export function useCreateCanvas(options: CanvasOptions) {
 }
 
 export const useCanvas = () => useContext(CanvasContext);
-
-// FIXME: this is silly, clean this pattern up
-export function CanvasGestures(props: Parameters<typeof useCanvasGestures>[0]) {
-	useCanvasGestures(props);
-	return null;
-}

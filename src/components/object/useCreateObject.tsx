@@ -15,13 +15,11 @@ import {
 import {
 	Canvas,
 	CanvasGestureEvent,
-	CanvasGestureInfo,
 	CanvasGestureInput,
 	ContainerData,
 	ObjectData,
 } from '../../logic/Canvas.js';
 import { isDrag } from '../../logic/gestureUtils.js';
-import { subtractVectors } from '../../logic/math.js';
 import { TransformInit } from '../../logic/Transform.js';
 import { useClaimedGestures } from '../canvas/canvasHooks.js';
 import { useCanvas } from '../canvas/CanvasProvider.js';
@@ -32,6 +30,7 @@ export interface CanvasObject<Metadata = any> {
 	ref: Ref<HTMLDivElement>;
 	draggingSignal: Atom<boolean>;
 	blockInteractionSignal: Atom<boolean>;
+	disableAnimationSignal: Atom<boolean>;
 	update: (updates: Omit<RegistryTransformInit, 'size'>) => void;
 	metadataRef: RefObject<Metadata | undefined>;
 	entry: BoundsRegistryEntry<ObjectData<Metadata>>;
@@ -128,6 +127,10 @@ export function useCreateObject<Metadata = any>({
 		`${id} block interaction signal`,
 		false,
 	);
+	const disableAnimationSignal = useAtom(
+		`${id} disable animation signal`,
+		false,
+	);
 
 	// I'm kinda using this pattern a lot... might be dangerous.
 	const metadataRef = useRef(metadata);
@@ -203,11 +206,12 @@ export function useCreateObject<Metadata = any>({
 	});
 
 	// should this be stabilized?
-	const object = {
+	const object: CanvasObject = {
 		id,
 		ref: entry.ref,
 		draggingSignal,
 		blockInteractionSignal,
+		disableAnimationSignal: disableAnimationSignal,
 		metadataRef,
 		entry,
 		update,
@@ -266,6 +270,8 @@ export function useCreateObject<Metadata = any>({
 				entry.transform.setParent(null);
 				draggingSignal.set(true);
 				blockInteractionSignal.set(true);
+				disableAnimationSignal.set(true);
+				console.log('disabled animation');
 
 				entry.transform.setGestureOffset(input.distance);
 
@@ -357,6 +363,7 @@ export function useCreateObject<Metadata = any>({
 				if (!isDrag(input)) {
 					// just in case.
 					blockInteractionSignal.set(false);
+					disableAnimationSignal.set(false);
 					onTap?.(gestureEventRef.current, object, canvas);
 					if (!gestureEventRef.current.defaultPrevented) {
 						defaultOnTap(gestureEventRef.current, object, canvas);
@@ -369,6 +376,17 @@ export function useCreateObject<Metadata = any>({
 					setTimeout(() => {
 						blockInteractionSignal.set(false);
 					}, 100);
+
+					// if container changed, delay animation.
+					if (gestureEventRef.current.containerId) {
+						setTimeout(() => {
+							disableAnimationSignal.set(false);
+						}, 100);
+					} else {
+						// otherwise re-enable immediately so the object animates into position during
+						// a cancelled gesture or if the user sets a different position (like snapped).
+						disableAnimationSignal.set(false);
+					}
 
 					const container = containerCandidateRef.current;
 					if (container) {

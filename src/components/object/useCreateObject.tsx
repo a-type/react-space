@@ -32,7 +32,7 @@ export interface CanvasObject<Metadata = any> {
 	ref: Ref<HTMLDivElement>;
 	draggingSignal: Atom<boolean>;
 	blockInteractionSignal: Atom<boolean>;
-	update: (updates: Omit<RegistryTransformInit, 'size'>) => void;
+	update: (updates: RegistryTransformInit) => void;
 	metadataRef: RefObject<Metadata | undefined>;
 	entry: BoundsRegistryEntry<ObjectData<Metadata>>;
 	[CONTAINER_STATE]: Atom<{ overId: string | null; accepted: boolean }>;
@@ -85,7 +85,7 @@ export function useCreateObject<Metadata = any>({
 	onTap,
 }: {
 	id: string;
-	initialTransform?: Omit<RegistryTransformInit, 'size'>;
+	initialTransform?: RegistryTransformInit;
 	metadata?: Metadata;
 	onDrag?: (
 		event: CanvasGestureEvent,

@@ -110,6 +110,11 @@ export const KitchenSink: Story = {
 								y: pos.y - size.height / 2,
 							})}
 						/>
+						<AutonomousNode
+							id="auto-1"
+							initialPosition={{ x: 0, y: 0 }}
+							size={32}
+						/>
 						<CanvasSvgLayer id="selection">
 							<BoxSelect className="box-select" />
 						</CanvasSvgLayer>
@@ -148,6 +153,7 @@ function DemoNode({
 		initialTransform: {
 			position: initialPosition,
 			getOrigin,
+			size: size ? { width: size, height: size } : undefined,
 		},
 		// demonstrate callbacks can be added without interefering with
 		// inherent gesture behavior
@@ -185,6 +191,48 @@ function DemoNode({
 			>
 				<ObjectPickupEffect>{children}</ObjectPickupEffect>
 			</ObjectHandle>
+		</Object>
+	);
+}
+
+function AutonomousNode({
+	id,
+	initialPosition,
+	size,
+	children,
+}: {
+	id: string;
+	initialPosition: Vector2;
+	size: number;
+	children?: React.ReactNode;
+}) {
+	const canvasObject = useCreateObject({
+		id,
+		initialTransform: {
+			position: initialPosition,
+			size: { width: size, height: size },
+		},
+	});
+
+	React.useEffect(() => {
+		const interval = setInterval(() => {
+			canvasObject.update({
+				position: {
+					x: initialPosition.x + Math.random() * 200 - 100,
+					y: initialPosition.y + Math.random() * 200 - 100,
+				},
+			});
+		}, 1000);
+		return () => {
+			clearInterval(interval);
+		};
+	}, [canvasObject]);
+
+	return (
+		<Object className="node" value={canvasObject}>
+			<div className="handle" style={{ width: size, height: size }}>
+				{children}
+			</div>
 		</Object>
 	);
 }

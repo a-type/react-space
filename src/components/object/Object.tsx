@@ -16,6 +16,7 @@ import { ContainerPortal } from '../container/ContainerPortal.js';
 import { CONTAINER_STATE } from './private.js';
 import { useLiveElementPosition } from './signalHooks.js';
 import { CanvasObject } from './useCreateObject.js';
+import { animated } from '@react-spring/web';
 
 export interface ObjectProps extends HTMLAttributes<HTMLDivElement> {
 	value: CanvasObject<any>;
@@ -76,7 +77,7 @@ export const Object = function Object({
 	return (
 		<ContainerPortal containerId={parent}>
 			<ObjectContext.Provider value={value}>
-				<div
+				<animated.div
 					ref={finalRef}
 					style={{
 						...style,
@@ -98,7 +99,7 @@ export const Object = function Object({
 							{children}
 						</div>
 					}
-				</div>
+				</animated.div>
 			</ObjectContext.Provider>
 		</ContainerPortal>
 	);
@@ -137,8 +138,10 @@ function useObjectRendering(
 		[object, entry],
 	);
 
-	const positionProps =
-		useLiveElementPosition<HTMLDivElement>(renderedPosition);
+	const positionProps = useLiveElementPosition<HTMLDivElement>(
+		renderedPosition,
+		object.draggingSignal,
+	);
 
 	// while we're here, add additional style data
 	const draggingSignal = object.draggingSignal;

@@ -18,16 +18,16 @@ export function ContainerArea({ value, ...rest }: ContainerAreaProps) {
 	const canvas = useCanvas();
 	const object = useMaybeObject();
 
-	// TODO: consistency of approach with object
 	const entry = useSyncExternalStore(
 		(cb) =>
 			canvas.bounds.subscribe('entryReplaced', (id) => {
 				if (id === value.id) cb();
 			}),
 		() =>
+			canvas.bounds.get(value.id) ??
 			canvas.bounds.register(
 				value.id,
-				{ id: value.id, initialParent: object?.id },
+				{ parent: object?.id },
 				{
 					type: 'container',
 					accepts: value.accepts,
@@ -39,8 +39,7 @@ export function ContainerArea({ value, ...rest }: ContainerAreaProps) {
 	useEffect(() => {
 		const objectEntry = object ? canvas.bounds.get(object.id) : null;
 		entry.transform.apply({
-			id: entry.id,
-			initialParent: objectEntry?.transform ?? null,
+			parent: objectEntry?.transform ?? null,
 		});
 	}, [canvas, entry, object]);
 

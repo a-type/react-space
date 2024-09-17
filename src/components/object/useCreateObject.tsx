@@ -9,51 +9,100 @@ import {
 import { Atom } from 'signia';
 import { useAtom } from 'signia-react';
 import {
+	BoundsRegistryEntry,
+	RegistryTransformInit,
+} from '../../logic/BoundsRegistry.js';
+import {
+	Canvas,
 	CanvasGestureInfo,
 	CanvasGestureInput,
 	ContainerData,
 	ObjectData,
 } from '../../logic/Canvas.js';
-import { Size, Vector2 } from '../../types.js';
+import { isDrag } from '../../logic/gestureUtils.js';
+import { subtractVectors } from '../../logic/math.js';
+import { TransformInit } from '../../logic/Transform.js';
 import { useObjectGestures } from '../canvas/canvasHooks.js';
 import { useCanvas } from '../canvas/CanvasProvider.js';
 import { CONTAINER_STATE } from './private.js';
-import { BoundsRegistryEntry } from '../../logic/BoundsRegistry.js';
-import { addVectors, subtractVectors, vectorLength } from '../../logic/math.js';
-import { isDrag } from '../../logic/gestureUtils.js';
 
 export interface CanvasObject<Metadata = any> {
 	id: string;
 	ref: Ref<HTMLDivElement>;
-	containerId: string | null;
 	draggingSignal: Atom<boolean>;
 	blockInteractionSignal: Atom<boolean>;
-	move: (position: Vector2) => void;
+	update: (updates: Omit<RegistryTransformInit, 'size'>) => void;
 	metadataRef: RefObject<Metadata | undefined>;
 	entry: BoundsRegistryEntry<ObjectData<Metadata>>;
 	[CONTAINER_STATE]: Atom<{ overId: string | null }>;
 }
 
+const empty = {};
+
+const objectRegistry: Record<string, boolean> = {};
+
+function defaultOnDrag(info: CanvasGestureInfo, self: CanvasObject) {}
+
+function defaultOnDrop(info: CanvasGestureInfo, self: CanvasObject) {
+	self.update({
+		parent: info.containerId,
+		position: info.worldPosition,
+	});
+}
+
+function defaultOnTap(
+	info: CanvasGestureInfo,
+	self: CanvasObject,
+	canvas: Canvas,
+) {
+	if (info.shift || info.ctrlOrMeta) {
+		canvas.selections.add(self.id);
+	} else {
+		canvas.selections.set([self.id]);
+	}
+}
+
 export function useCreateObject<Metadata = any>({
 	id,
-	containerId = null,
-	initialPosition,
-	getOrigin,
+	initialTransform = empty,
 	metadata,
-	onDrag,
-	onDrop,
-	onTap,
+	onDrag = defaultOnDrag,
+	onDrop = defaultOnDrop,
+	onTap = defaultOnTap,
 }: {
 	id: string;
-	containerId?: string | null;
-	initialPosition: Vector2;
+	initialTransform?: Omit<RegistryTransformInit, 'size'>;
 	metadata?: Metadata;
-	onDrag?: (event: CanvasGestureInfo) => void;
-	onDrop?: (event: CanvasGestureInfo) => void;
-	onTap?: (event: CanvasGestureInfo) => void;
-	getOrigin?: (position: Vector2, size: Size) => Vector2;
+	onDrag?: (
+		event: CanvasGestureInfo,
+		self: CanvasObject,
+		canvas: Canvas,
+	) => void;
+	onDrop?: (
+		event: CanvasGestureInfo,
+		self: CanvasObject,
+		canvas: Canvas,
+	) => void;
+	onTap?: (
+		event: CanvasGestureInfo,
+		self: CanvasObject,
+		canvas: Canvas,
+	) => void;
 }): CanvasObject<Metadata> {
 	const canvas = useCanvas();
+
+	useEffect(() => {
+		if (objectRegistry[id]) {
+			console.warn(
+				`Object with ID ${id} already exists in the canvas. This is not allowed and will cause bizarre behavior.`,
+			);
+		} else {
+			objectRegistry[id] = true;
+			return () => {
+				delete objectRegistry[id];
+			};
+		}
+	}, [id]);
 
 	const draggingSignal = useAtom(`${id} dragging signal`, false);
 	const blockInteractionSignal = useAtom(
@@ -69,32 +118,35 @@ export function useCreateObject<Metadata = any>({
 				if (id === objId) cb();
 			}),
 		() =>
-			canvas.bounds.register(
-				id,
-				{
-					id,
-					initialParent: containerId,
-					initialPosition,
-					getOrigin,
-				},
-				{ type: 'object', metadata: metadataRef },
-			) as BoundsRegistryEntry<ObjectData<Metadata>>,
+			(canvas.bounds.get(id) ??
+				canvas.bounds.register(id, initialTransform, {
+					type: 'object',
+					metadata: metadataRef,
+				})) as BoundsRegistryEntry<ObjectData<Metadata>>,
 	);
 
-	useEffect(() => {
-		const container = containerId ? canvas.bounds.get(containerId) : null;
-		entry.transform.apply({
-			id: entry.id, // TODO: not this
-			initialParent: container?.transform ?? null,
-			initialPosition,
-		});
-	}, [containerId, initialPosition, entry, canvas]);
-
-	const move = useCallback(
-		(position: Vector2) => {
-			entry.transform.setPosition(position);
+	const update = useCallback(
+		(changes: RegistryTransformInit) => {
+			const changesAsFulfilled: Omit<TransformInit, 'id'> = changes as any;
+			if (changes.parent) {
+				const parent = canvas.bounds.get(changes.parent);
+				if (!parent) {
+					console.warn(
+						`Cannot update parent of object ${entry.id} to ${changes.parent}; container with that ID was not found in the canvas.`,
+					);
+					changesAsFulfilled.parent = null;
+				} else if (parent?.data.type !== 'container') {
+					console.warn(
+						`Cannot update parent of object ${entry.id} to ${changes.parent}; object with that ID is not a container.`,
+					);
+					changesAsFulfilled.parent = null;
+				} else {
+					changesAsFulfilled.parent = parent?.transform ?? null;
+				}
+			}
+			entry.transform.apply(changesAsFulfilled);
 		},
-		[entry],
+		[entry, canvas],
 	);
 
 	const [gestureInfoRef, resetGestureInfo, copyInfoFrom] = useGestureInfo();
@@ -223,7 +275,7 @@ export function useCreateObject<Metadata = any>({
 					}
 					gestureInfoRef.current.containerId = undefined;
 				}
-				onDrag?.(gestureInfoRef.current);
+				(onDrag ?? defaultOnDrag)(gestureInfoRef.current, object, canvas);
 			},
 			onDragEnd(input) {
 				// if any parent is included in selection, ignore this gesture entirely
@@ -247,7 +299,7 @@ export function useCreateObject<Metadata = any>({
 				if (!isDrag(input)) {
 					// just in case.
 					blockInteractionSignal.set(false);
-					onTap?.(gestureInfoRef.current);
+					onTap?.(gestureInfoRef.current, object, canvas);
 					return;
 				} else {
 					// ONLY ON CONFIRMED DRAGS.
@@ -272,7 +324,7 @@ export function useCreateObject<Metadata = any>({
 							);
 						}
 					}
-					onDrop?.(gestureInfoRef.current);
+					(onDrop ?? defaultOnDrop)(gestureInfoRef.current, object, canvas);
 				}
 
 				// reset for next gesture
@@ -283,17 +335,18 @@ export function useCreateObject<Metadata = any>({
 		id,
 	);
 
-	return {
+	const object = {
 		id,
 		ref: entry.ref,
-		containerId,
 		draggingSignal,
 		blockInteractionSignal,
 		metadataRef,
 		entry,
-		move,
+		update,
 		[CONTAINER_STATE]: containerState,
 	};
+
+	return object;
 }
 
 function useGestureInfo() {

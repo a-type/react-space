@@ -4,9 +4,9 @@ import { addVectors, sizesEqual, vectorsEqual } from './math.js';
 
 export interface TransformInit {
 	id: string;
-	initialPosition?: Vector2;
-	initialSize?: Size;
-	initialParent?: Transform | null;
+	position?: Vector2;
+	size?: Size;
+	parent?: Transform | null;
 	getOrigin?: (position: Vector2, size: Size) => Vector2;
 }
 
@@ -73,10 +73,10 @@ export class Transform {
 		| undefined = undefined;
 
 	constructor({
-		initialPosition = { x: 0, y: 0 },
-		initialSize = { width: 0, height: 0 },
+		position: initialPosition = { x: 0, y: 0 },
+		size: initialSize = { width: 0, height: 0 },
 		getOrigin,
-		initialParent = null,
+		parent: initialParent = null,
 		id,
 	}: TransformInit) {
 		this.id = id;
@@ -149,13 +149,13 @@ export class Transform {
 		});
 	}
 
-	apply = (init: TransformInit) => {
-		if (init.initialParent === this) {
+	apply = (init: Omit<TransformInit, 'id'>) => {
+		if (init.parent === this) {
 			throw new Error(`Cannot set parent of ${this.id} to self`);
 		}
-		if (init.initialPosition) this.setPosition(init.initialPosition);
-		if (init.initialSize) this.setSize(init.initialSize);
-		if (init.initialParent !== undefined) this.setParent(init.initialParent);
+		if (init.position) this.setPosition(init.position);
+		if (init.size) this.setSize(init.size);
+		if (init.parent !== undefined) this.setParent(init.parent);
 		if (init.getOrigin) {
 			this.computeOrigin = init.getOrigin;
 		}

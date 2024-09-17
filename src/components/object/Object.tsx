@@ -1,4 +1,3 @@
-import { useGesture } from '@use-gesture/react';
 import {
 	createContext,
 	CSSProperties,
@@ -7,18 +6,16 @@ import {
 	useEffect,
 	useRef,
 } from 'react';
+import { react } from 'signia';
 import { useComputed, useValue } from 'signia-react';
 import { useMergedRef } from '../../hooks.js';
 import { BoundsRegistryEntry } from '../../logic/BoundsRegistry.js';
-import { CanvasGestureInfo, ObjectData } from '../../logic/Canvas.js';
+import { ObjectData } from '../../logic/Canvas.js';
 import { useRerasterize } from '../../logic/rerasterizeSignal.js';
-import { useCanvas } from '../canvas/CanvasProvider.js';
 import { ContainerPortal } from '../container/ContainerPortal.js';
-import { gestureState } from '../gestures/useGestureState.js';
 import { CONTAINER_STATE } from './private.js';
 import { useLiveElementPosition } from './signalHooks.js';
 import { CanvasObject } from './useCreateObject.js';
-import { react } from 'signia';
 
 export interface ObjectProps extends HTMLAttributes<HTMLDivElement> {
 	value: CanvasObject<any>;

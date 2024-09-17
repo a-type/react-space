@@ -1,7 +1,7 @@
 import { EventSubscriber } from '@a-type/utils';
+import { react } from 'signia';
+import { Box, Vector2 } from '../types.js';
 import { SpatialHash } from './SpatialHash.js';
-import { Atom, react, Signal } from 'signia';
-import { Box, Size, Vector2 } from '../types.js';
 import { Transform, TransformInit } from './Transform.js';
 
 export interface BoundsEntryData {
@@ -26,7 +26,6 @@ export class BoundsRegistryEntry<TData extends BoundsEntryData> {
 			prev: Element | null,
 		) => void,
 	) {
-		console.log('BoundsRegistryEntry created for', id);
 		this.cleanup = react(`${id} entry change`, () => {
 			onEntryChange(id, transform.bounds.value);
 		});
@@ -57,8 +56,8 @@ export type BoundsRegistryEvents = {
 	elementChanged: (id: string, element: Element | null) => void;
 };
 
-export type RegistryTransformInit = Omit<TransformInit, 'initialParent'> & {
-	initialParent?: string | null;
+export type RegistryTransformInit = Omit<TransformInit, 'parent' | 'id'> & {
+	parent?: string | null;
 };
 
 export class BoundsRegistry<
@@ -79,17 +78,16 @@ export class BoundsRegistry<
 		this.deregistered.delete(id);
 
 		const parentEntry =
-			transformInit.initialParent ?
-				this.get(transformInit.initialParent)
-			:	null;
+			transformInit.parent ? this.get(transformInit.parent) : null;
 
 		let entry = this.entries.get(id);
 		if (!entry) {
 			entry = new BoundsRegistryEntry(
 				id,
 				new Transform({
+					id,
 					...transformInit,
-					initialParent: parentEntry?.transform,
+					parent: parentEntry?.transform,
 				}),
 				data,
 				this.onEntryChange,
@@ -98,11 +96,7 @@ export class BoundsRegistry<
 			this.entries.set(id, entry);
 			this.emit('entryReplaced', id);
 		} else {
-			entry.transform.apply({
-				...transformInit,
-				initialParent: parentEntry?.transform,
-			});
-			entry.setData(data);
+			throw new Error(`Entry already exists for ${id}`);
 		}
 
 		return entry;

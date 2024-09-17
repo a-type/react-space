@@ -24,10 +24,10 @@
 }
 
 .selected {
-	box-shadow: 0 0 0 4px white;
+	outline: solid 4px white;
 }
 .pending {
-	box-shadow: 0 0 0 4px yellow;
+	outline: solid 4px yellow;
 }
 
 .wire {

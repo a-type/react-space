@@ -143,25 +143,18 @@ function DemoNode({
 	getOrigin?: (position: Vector2, size: Size) => Vector2;
 	children?: React.ReactNode;
 }) {
-	const [container, setContainer] = React.useState<string | null>(null);
-	const [position, setPosition] = React.useState(() => initialPosition);
-
 	const canvasObject = useCreateObject({
 		id,
-		initialPosition: position,
-		containerId: container,
-		getOrigin,
-		onDrop: (event) => {
-			setContainer(event.containerId ?? null);
-			setPosition(event.position);
-			console.log('drop on', event.containerId ?? 'canvas', event.position);
+		initialTransform: {
+			position: initialPosition,
+			getOrigin,
 		},
-		onTap: (event) => {
-			if (event.shift || event.ctrlOrMeta) {
-				canvas.selections.add(id);
-			} else {
-				canvas.selections.set([id]);
-			}
+		onDrop: (event, self) => {
+			self.update({
+				parent: event.containerId,
+				position: event.worldPosition,
+			});
+			console.log('drop on', event.containerId ?? 'canvas', event.position);
 		},
 	});
 
@@ -233,19 +226,16 @@ function MovableContainer({
 	priority: number;
 	position: Vector2;
 }) {
-	const [parentContainer, setParentContainer] = React.useState<string | null>(
-		null,
-	);
-	const [position, setPosition] = React.useState(() => initialPosition);
-
 	const canvasObject = useCreateObject({
 		id,
-		initialPosition: position,
-		containerId: parentContainer,
-		onDrag: (event) => {},
-		onDrop: (event) => {
-			setParentContainer(event.containerId ?? null);
-			setPosition(event.position);
+		initialTransform: {
+			position: initialPosition,
+		},
+		onDrop: (event, self) => {
+			self.update({
+				parent: event.containerId,
+				position: event.worldPosition,
+			});
 			console.log(
 				'drop on',
 				event.containerId ?? 'canvas',

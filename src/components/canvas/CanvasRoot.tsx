@@ -55,10 +55,6 @@ export const CanvasRoot = ({
 					...userStyle,
 					// override user styles -- all base styles are vital to function.
 					...baseStyle,
-					// @ts-ignore
-					'--grid-size': `${
-						canvas.snapIncrement > 1 ? canvas.snapIncrement : 24
-					}px`,
 				}}
 			>
 				<div data-purpose="centerer" style={centererStyle}>

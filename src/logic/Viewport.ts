@@ -1,12 +1,6 @@
 import { EventSubscriber, preventDefault } from '@a-type/utils';
 import { Size, Vector2, RectLimits, Box } from '../types.js';
-import {
-	addVectors,
-	clamp,
-	clampVector,
-	multiplyVector,
-	subtractVectors,
-} from './math.js';
+import { addVectors, clamp, clampVector, subtractVectors } from './math.js';
 
 const MIN_POSSIBLE_ZOOM = 0.000001;
 
@@ -110,7 +104,7 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 	);
 	private zoomFitMin = MIN_POSSIBLE_ZOOM;
 
-	constructor({ boundElement, ...config }: ViewportConfig) {
+	constructor({ boundElement, ...config }: ViewportConfig = {}) {
 		super();
 
 		if (config.defaultCenter) {

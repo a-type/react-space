@@ -1,6 +1,5 @@
 import { createContext, useContext, useState } from 'react';
-import { Canvas, CanvasOptions } from '../../logic/Canvas.js';
-import { useCanvasGestures } from './canvasHooks.js';
+import { Canvas, CanvasConfig } from '../../logic/Canvas.js';
 import { Viewport } from '../../logic/Viewport.js';
 
 // A 'default' implementation of CanvasContext which essentially does nothing,
@@ -12,7 +11,7 @@ const dummyCanvas = new Canvas({
 const CanvasContext = createContext<Canvas>(dummyCanvas);
 export const CanvasProvider = CanvasContext.Provider;
 
-export function useCreateCanvas(options: CanvasOptions) {
+export function useCreateCanvas(options: CanvasConfig) {
 	return useState(() => new Canvas(options))[0];
 }
 

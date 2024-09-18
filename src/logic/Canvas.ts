@@ -8,7 +8,7 @@ import { clampVector, snap } from './math.js';
 import { Selections } from './Selections.js';
 import { Viewport } from './Viewport.js';
 
-export interface CanvasOptions {
+export interface CanvasConfig {
 	/** Snaps items to a world-unit grid after dropping them - defaults to 1. */
 	positionSnapIncrement?: number;
 	limits?: RectLimits;
@@ -117,7 +117,7 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 	private _positionSnapIncrement = 1;
 	private _viewportUpdateReact;
 
-	constructor(private options: CanvasOptions) {
+	constructor(private options: CanvasConfig) {
 		super();
 		this.viewport = options.viewport;
 		this.limits = atom('canvas limits', options?.limits ?? DEFAULT_LIMITS);

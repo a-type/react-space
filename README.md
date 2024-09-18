@@ -11,3 +11,9 @@ This is my first attempt at a general-purpose 2D "infinite" canvas abstraction. 
 See `./src/stories` for working examples. Not going to attempt to document here until the usage is stable.
 
 Unlike other 2D canvas that I know of, this library automatically tracks the size of object elements within the canvas, so it's much easier to do things like intersection queries. Included out of the box is a `<BoxSelect />` component, too. The main `Canvas` has a `selections` property which tracks selected objects by ID. So, the library is kind of opinionated about some common concepts. This may prove to be unfortunate for general usage, but tbh this is mostly for me, anyway.
+
+## A note about licensing
+
+The code as represented here is licensed CC-NC. You cannot use it for commercial purposes.
+
+If you would like to use this library for commercial purposes, please contact me directly.

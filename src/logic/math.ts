@@ -1,6 +1,5 @@
-import { to } from '@react-spring/web';
-import { LiveSize, LiveVector2, Size, Vector2 } from '../types.js';
-import { computed } from 'signia';
+import { LiveVector2, Size, Vector2 } from '../types.js';
+import { computed, Signal } from 'signia';
 
 /**
  * Constrains a number to be between a min and max value
@@ -154,9 +153,9 @@ export function isVector2(obj: any): obj is Vector2 {
 }
 
 export function closestLivePoint(
-	sourceCenter: LiveVector2,
-	sourceBounds: LiveSize,
-	targetCenter: LiveVector2,
+	sourceCenter: Signal<Vector2>,
+	sourceBounds: Signal<Size>,
+	targetCenter: Signal<Vector2>,
 	shortenBy: number = 0,
 ) {
 	return computed('closestLivePoint', () => {

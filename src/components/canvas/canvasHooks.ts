@@ -3,6 +3,7 @@ import { atom } from 'signia';
 import { useSnapshot } from 'valtio';
 import { BoundsRegistryEntry } from '../../logic/BoundsRegistry.js';
 import {
+	Canvas,
 	CanvasGestureInfo,
 	CanvasGestureInput,
 	ContainerData,
@@ -52,8 +53,9 @@ export function useSurfaceElement(surfaceId: string | null) {
 // implementation is identical.
 export const useContainerElement = useSurfaceElement;
 
-export function useObjectIds() {
-	const canvas = useCanvas();
+export function useObjectIds(canvasOverride?: Canvas) {
+	const ctxCanvas = useCanvas();
+	const canvas = canvasOverride ?? ctxCanvas;
 	const [ids, setIds] = useState<string[]>(() => canvas.bounds.ids);
 	useEffect(() => {
 		return canvas.bounds.subscribe('observedChange', () => {

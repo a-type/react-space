@@ -21,6 +21,7 @@ import {
 	useIsSelected,
 	Vector2,
 	ViewportRoot,
+	Minimap,
 } from '../index.js';
 import clsx from 'clsx';
 
@@ -114,10 +115,8 @@ export const KitchenSink: Story = {
 							<BoxSelect className="box-select" />
 						</CanvasSvgLayer>
 					</CanvasRoot>
-					{/* <CanvasOverlay>
-						<Minimap canvas={canvas} />
-					</CanvasOverlay> */}
 				</ViewportRoot>
+				<Minimap canvas={canvas} className="minimap" />
 				{debug && <DebugLayer canvas={canvas} />}
 				<div className="controls">
 					<button onClick={() => canvas.resizeToFitContent(24)}>

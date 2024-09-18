@@ -10,7 +10,6 @@ import { useStableCallback } from '../../hooks.js';
 import { Viewport } from '../../logic/Viewport.js';
 import { Vector2 } from '../../types.js';
 import { gestureState } from '../gestures/useGestureState.js';
-import { isMiddleClick, isRightClick } from '@a-type/utils';
 
 /**
  * Tracks cursor position and sends updates to the socket connection
@@ -158,18 +157,8 @@ export function useViewportGestureControls(
 	const bindPassiveGestures = useGesture(
 		{
 			onDrag: (state) => {
-				// viewport drag is middle click only
-				if (!('button' in state.event) || !isMiddleClick(state.event)) {
-					return;
-				}
-
 				// ignore gestures claimed by objects or regions
 				if (gestureState.claimType) {
-					console.debug(
-						'ignoring drag claimed by',
-						gestureState.claimType,
-						gestureState.claimedBy,
-					);
 					return;
 				}
 

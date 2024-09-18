@@ -166,8 +166,12 @@ function useCanvasGestures({
 						y: state.xy[1],
 					}),
 				);
+				const isQualifiedTap =
+					state.tap &&
+					(gestureInputEventRef.current.inputType === 'touch' ||
+						gestureInputEventRef.current.inputType === 'mouse1');
 				if (isObjectOrToolGestureClaim() && gestureState.claimedBy) {
-					if (state.tap) {
+					if (isQualifiedTap) {
 						canvas.onClaimedTap(gestureInputEventRef.current);
 					}
 					canvas.onClaimedDragEnd(gestureInputEventRef.current);
@@ -183,7 +187,7 @@ function useCanvasGestures({
 						if (!gestureInputEventRef.current.defaultPrevented) {
 							defaultOnDragEnd(gestureInputEventRef.current, canvas);
 						}
-					} else {
+					} else if (isQualifiedTap) {
 						canvas.onCanvasTap(gestureInputEventRef.current);
 						onTap?.(gestureInputEventRef.current, canvas);
 						if (!gestureInputEventRef.current.defaultPrevented) {

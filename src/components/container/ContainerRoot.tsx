@@ -2,10 +2,10 @@ import { HTMLAttributes, useEffect, useRef, useSyncExternalStore } from 'react';
 import { Container } from './containerHooks.js';
 import { useCanvas } from '../canvas/CanvasProvider.js';
 import { ContainerProvider } from './containerHooks.js';
-import { useMaybeSurface } from '../surface/Surface.js';
+import { useMaybeSurface } from '../surface/SurfaceRoot.js';
 import { useMergedRef } from '../../hooks.js';
 
-export interface ContainerAreaProps extends HTMLAttributes<HTMLDivElement> {
+export interface ContainerRootProps extends HTMLAttributes<HTMLDivElement> {
 	value: Container;
 }
 
@@ -14,7 +14,7 @@ export interface ContainerAreaProps extends HTMLAttributes<HTMLDivElement> {
  * Within this space, Objects are positioned locally -- that is, relative to the
  * ObjectContainer's origin.
  */
-export function ContainerArea({ value, ...rest }: ContainerAreaProps) {
+export function ContainerRoot({ value, ...rest }: ContainerRootProps) {
 	const canvas = useCanvas();
 	const surface = useMaybeSurface();
 

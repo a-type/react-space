@@ -1,5 +1,5 @@
 import { HTMLAttributes } from 'react';
-import { useSurface } from './Surface.js';
+import { useSurface } from './SurfaceRoot.js';
 import { useSpring, animated } from '@react-spring/web';
 import { useValue } from 'signia-react';
 import { SPRINGS } from '../../constants.js';

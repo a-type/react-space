@@ -6,7 +6,7 @@ import {
 	GestureClaimDetail,
 	useClaimGesture,
 } from '../gestures/useGestureState.js';
-import { useSurface } from './Surface.js';
+import { useSurface } from './SurfaceRoot.js';
 import { Slot } from '@radix-ui/react-slot';
 
 export interface SurfaceHandleProps extends HTMLAttributes<HTMLDivElement> {

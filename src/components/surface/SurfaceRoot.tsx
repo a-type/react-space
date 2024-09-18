@@ -18,7 +18,7 @@ import { useLiveElementPosition } from './signalHooks.js';
 import { CanvasSurface } from './useCreateSurface.js';
 import { animated } from '@react-spring/web';
 
-export interface SurfaceProps extends HTMLAttributes<HTMLDivElement> {
+export interface SurfaceRootProps extends HTMLAttributes<HTMLDivElement> {
 	value: CanvasSurface<any>;
 	/**
 	 * A content wrapping element is rendered to ensure any styling
@@ -38,13 +38,13 @@ const contentStyle: CSSProperties = {
 	position: 'relative',
 };
 
-export const Surface = function Surface({
+export const SurfaceRoot = function SurfaceRoot({
 	value,
 	children,
 	style: userStyle,
 	disableContentWrapper,
 	...rest
-}: SurfaceProps) {
+}: SurfaceRootProps) {
 	const ref = useRef<HTMLDivElement>(null);
 	useRerasterize(ref);
 

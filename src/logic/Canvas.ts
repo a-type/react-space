@@ -51,7 +51,7 @@ export interface CanvasGestureInputEvent extends CanvasGestureInput {
 	defaultPrevented: boolean;
 }
 
-export interface SurfaceContainmentEvent<Metadata> {
+export interface SurfaceContainmentEvent<Metadata = any> {
 	surfaceId: string;
 	surfaceMetadata?: Metadata;
 	surfaceBounds: Box;
@@ -77,13 +77,13 @@ export type CanvasEvents = {
 	containerObjectOut: (containerId: string, surfaceId: string) => void;
 };
 
-export type SurfaceData<Metadata> = {
+export type SurfaceData<Metadata = any> = {
 	type: 'surface';
 	metadata: RefObject<Metadata>;
 	disableSelect: RefObject<boolean>;
 };
 
-export type ContainerData<Metadata> = {
+export type ContainerData<Metadata = any> = {
 	type: 'container';
 	priority: number;
 	accepts?: (containmentEvent: SurfaceContainmentEvent<Metadata>) => boolean;

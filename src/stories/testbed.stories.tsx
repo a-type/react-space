@@ -5,10 +5,10 @@ import {
 	BoxSelect,
 	CanvasRoot,
 	CanvasSvgLayer,
-	CanvasWallpaper,
-	ContainerArea,
+	CanvasBackground,
+	ContainerRoot,
 	DebugLayer,
-	Surface,
+	SurfaceRoot,
 	SurfaceHandle,
 	SurfacePickupEffect,
 	useCreateSurface,
@@ -66,7 +66,7 @@ export const KitchenSink: Story = {
 			<>
 				<ViewportRoot className="outer" viewport={viewport}>
 					<CanvasRoot canvas={canvas} {...canvasGestureLogs}>
-						<CanvasWallpaper className="background" />
+						<CanvasBackground className="background" />
 						<Container id="container" priority={0} position={{ x: 0, y: 0 }} />
 						<Container
 							id="container2"
@@ -174,7 +174,11 @@ function DemoNode({
 	const { selected, pending } = useIsSelected(id);
 
 	return (
-		<Surface className="node" value={canvasSurface} onDoubleClick={zoomToFit}>
+		<SurfaceRoot
+			className="node"
+			value={canvasSurface}
+			onDoubleClick={zoomToFit}
+		>
 			<SurfaceHandle
 				asChild
 				className={clsx('handle', selected && 'selected', pending && 'pending')}
@@ -185,7 +189,7 @@ function DemoNode({
 			>
 				<SurfacePickupEffect>{children}</SurfacePickupEffect>
 			</SurfaceHandle>
-		</Surface>
+		</SurfaceRoot>
 	);
 }
 
@@ -224,11 +228,11 @@ function AutonomousNode({
 	}, [canvasSurface.update, initialPosition]);
 
 	return (
-		<Surface className="node" value={canvasSurface}>
+		<SurfaceRoot className="node" value={canvasSurface}>
 			<SurfaceHandle className="handle" style={{ width: size, height: size }}>
 				{children}
 			</SurfaceHandle>
-		</Surface>
+		</SurfaceRoot>
 	);
 }
 
@@ -250,7 +254,7 @@ function Container({
 	const canDrop = overSurfaces.some((o) => o.accepted);
 
 	return (
-		<ContainerArea
+		<ContainerRoot
 			value={container}
 			className={clsx('container', { dance: canDrop })}
 			data-object-over={!!overSurfaces.length}
@@ -292,12 +296,12 @@ function MovableContainer({
 	const { selected, pending } = useIsSelected(id);
 
 	return (
-		<Surface
+		<SurfaceRoot
 			className={clsx('containerFrame', { selected, pending, dance: canDrop })}
 			value={canvasSurface}
 		>
 			<SurfaceHandle className="containerFrameHandle" />
-			<ContainerArea
+			<ContainerRoot
 				value={container}
 				className="container"
 				data-object-over={!!overSurfaces.length}
@@ -307,6 +311,6 @@ function MovableContainer({
 					height: 200,
 				}}
 			/>
-		</Surface>
+		</SurfaceRoot>
 	);
 }

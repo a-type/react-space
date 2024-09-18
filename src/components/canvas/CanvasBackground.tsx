@@ -1,16 +1,16 @@
-import * as React from 'react';
+import { CSSProperties, useEffect, useMemo, useRef } from 'react';
 import { react } from 'signia';
 import { useRerasterize } from '../../logic/rerasterizeSignal.js';
 import { useCanvas } from './CanvasProvider.js';
 
-export interface IViewportWallpaperProps {
+export interface CanvasBackgroundProps {
 	children?: React.ReactNode;
 	imageUrl?: string | null;
 	color?: string;
 	className?: string;
 }
 
-const baseStyle: React.CSSProperties = {
+const baseStyle: CSSProperties = {
 	position: 'absolute',
 	touchAction: 'none',
 	backgroundRepeat: 'repeat',
@@ -18,20 +18,22 @@ const baseStyle: React.CSSProperties = {
 };
 
 /**
- * Renders a wallpaper inside a viewport which stretches to the bounds of the
- * enclosed canvas.
+ * Renders a rectangle inside a viewport which stretches to the bounds of the
+ * enclosed canvas. For convenience, you can pass imageUrl or color (or both),
+ * or you can render children.
  */
-export const CanvasWallpaper: React.FC<IViewportWallpaperProps> = ({
+export const CanvasBackground = ({
 	children,
 	imageUrl,
+	color,
 	...rest
-}) => {
+}: CanvasBackgroundProps) => {
 	const canvas = useCanvas();
 
-	const ref = React.useRef<HTMLDivElement>(null);
+	const ref = useRef<HTMLDivElement>(null);
 	useRerasterize(ref);
 
-	React.useEffect(() => {
+	useEffect(() => {
 		return react('canvas wallpaper size', () => {
 			if (ref.current) {
 				const { min, max } = canvas.limits.value;
@@ -41,9 +43,10 @@ export const CanvasWallpaper: React.FC<IViewportWallpaperProps> = ({
 		});
 	}, [canvas, ref]);
 
-	const style = React.useMemo(() => {
+	const style = useMemo(() => {
 		return {
 			...baseStyle,
+			backgroundColor: color,
 			backgroundImage: imageUrl ? `url(${imageUrl})` : undefined,
 			width: canvas.limits.value.max.x - canvas.limits.value.min.x,
 			height: canvas.limits.value.max.y - canvas.limits.value.min.y,
@@ -51,7 +54,7 @@ export const CanvasWallpaper: React.FC<IViewportWallpaperProps> = ({
 			top: 0,
 			transform: `translate(-50%, -50%)`,
 		};
-	}, [imageUrl, canvas]);
+	}, [imageUrl, canvas, color]);
 
 	return (
 		<div style={style} ref={ref} {...rest}>

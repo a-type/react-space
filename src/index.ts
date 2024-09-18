@@ -12,7 +12,7 @@ export * from './components/canvas/CanvasOverlay.js';
 export * from './components/canvas/CanvasProvider.js';
 export * from './components/canvas/CanvasRoot.js';
 export * from './components/canvas/CanvasSvgLayer.js';
-export * from './components/canvas/CanvasWallpaper.js';
+export * from './components/canvas/CanvasBackground.js';
 export * from './components/Cursor.js';
 export * from './components/Minimap.js';
 export * from './components/viewport/ViewportRoot.js';

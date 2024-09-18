@@ -4,13 +4,11 @@ import { atom, Atom, react } from 'signia';
 import { proxy } from 'valtio';
 import { Box, RectLimits, Vector2 } from '../types.js';
 import { BoundsRegistry, BoundsRegistryEntry } from './BoundsRegistry.js';
-import { clampVector, snap } from './math.js';
+import { clampVector } from './math.js';
 import { Selections } from './Selections.js';
 import { Viewport } from './Viewport.js';
 
 export interface CanvasConfig {
-	/** Snaps items to a world-unit grid after dropping them - defaults to 1. */
-	positionSnapIncrement?: number;
 	limits?: RectLimits;
 	viewport: Viewport;
 	autoUpdateViewport?: boolean;
@@ -114,7 +112,6 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 		boxSelect: false,
 	});
 
-	private _positionSnapIncrement = 1;
 	private _viewportUpdateReact;
 
 	constructor(private options: CanvasConfig) {
@@ -133,11 +130,6 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 		}
 		// @ts-ignore for debugging...
 		window.canvas = this;
-		this._positionSnapIncrement = options?.positionSnapIncrement ?? 1;
-	}
-
-	get snapIncrement() {
-		return this._positionSnapIncrement;
 	}
 
 	bind = (element: HTMLDivElement) => {
@@ -171,11 +163,6 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 			this.limits.set({ min, max });
 		}
 	};
-
-	snapPosition = (position: Vector2) => ({
-		x: snap(position.x, this._positionSnapIncrement),
-		y: snap(position.y, this._positionSnapIncrement),
-	});
 
 	clampPosition = (position: Vector2) =>
 		clampVector(position, this.limits.value.min, this.limits.value.max);

@@ -176,7 +176,7 @@ function DemoNode({
 	return (
 		<SurfaceRoot
 			className="node"
-			value={canvasSurface}
+			surface={canvasSurface}
 			onDoubleClick={zoomToFit}
 		>
 			<SurfaceHandle
@@ -228,7 +228,7 @@ function AutonomousNode({
 	}, [canvasSurface.update, initialPosition]);
 
 	return (
-		<SurfaceRoot className="node" value={canvasSurface}>
+		<SurfaceRoot className="node" surface={canvasSurface}>
 			<SurfaceHandle className="handle" style={{ width: size, height: size }}>
 				{children}
 			</SurfaceHandle>
@@ -255,7 +255,7 @@ function Container({
 
 	return (
 		<ContainerRoot
-			value={container}
+			container={container}
 			className={clsx('container', { dance: canDrop })}
 			data-object-over={!!overSurfaces.length}
 			data-object-accepted={canDrop}
@@ -298,11 +298,11 @@ function MovableContainer({
 	return (
 		<SurfaceRoot
 			className={clsx('containerFrame', { selected, pending, dance: canDrop })}
-			value={canvasSurface}
+			surface={canvasSurface}
 		>
 			<SurfaceHandle className="containerFrameHandle" />
 			<ContainerRoot
-				value={container}
+				container={container}
 				className="container"
 				data-object-over={!!overSurfaces.length}
 				data-object-accepted={canDrop}

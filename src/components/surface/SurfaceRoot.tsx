@@ -19,7 +19,7 @@ import { CanvasSurface } from './useCreateSurface.js';
 import { animated } from '@react-spring/web';
 
 export interface SurfaceRootProps extends HTMLAttributes<HTMLDivElement> {
-	value: CanvasSurface<any>;
+	surface: CanvasSurface<any>;
 	/**
 	 * A content wrapping element is rendered to ensure any styling
 	 * changes you apply to the surface don't interfere with critical
@@ -39,7 +39,7 @@ const contentStyle: CSSProperties = {
 };
 
 export const SurfaceRoot = function SurfaceRoot({
-	value,
+	surface: value,
 	children,
 	style: userStyle,
 	disableContentWrapper,

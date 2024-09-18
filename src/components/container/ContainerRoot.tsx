@@ -6,7 +6,7 @@ import { useMaybeSurface } from '../surface/SurfaceRoot.js';
 import { useMergedRef } from '../../hooks.js';
 
 export interface ContainerRootProps extends HTMLAttributes<HTMLDivElement> {
-	value: Container;
+	container: Container;
 }
 
 /**
@@ -14,7 +14,10 @@ export interface ContainerRootProps extends HTMLAttributes<HTMLDivElement> {
  * Within this space, Objects are positioned locally -- that is, relative to the
  * ObjectContainer's origin.
  */
-export function ContainerRoot({ value, ...rest }: ContainerRootProps) {
+export function ContainerRoot({
+	container: value,
+	...rest
+}: ContainerRootProps) {
 	const canvas = useCanvas();
 	const surface = useMaybeSurface();
 

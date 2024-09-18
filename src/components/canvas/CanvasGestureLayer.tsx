@@ -285,6 +285,6 @@ function displace(screenPosition: Vector2, grabDisplacement: Vector2) {
 
 function isObjectOrToolGestureClaim() {
 	return (
-		gestureState.claimType === 'object' || gestureState.claimType === 'tool'
+		gestureState.claimType === 'surface' || gestureState.claimType === 'tool'
 	);
 }

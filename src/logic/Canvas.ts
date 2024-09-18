@@ -53,16 +53,11 @@ export interface CanvasGestureInputEvent extends CanvasGestureInput {
 	defaultPrevented: boolean;
 }
 
-export interface ObjectContainmentEvent<Metadata> {
-	objectId: string;
-	objectMetadata?: Metadata;
-	objectBounds: Box;
+export interface SurfaceContainmentEvent<Metadata> {
+	surfaceId: string;
+	surfaceMetadata?: Metadata;
+	surfaceBounds: Box;
 	ownBounds: Box;
-}
-
-export interface ObjectRegistration<Metadata> {
-	canContain?: (containmentEvent: ObjectContainmentEvent<Metadata>) => boolean;
-	containerPriority?: number;
 }
 
 const DEFAULT_LIMITS: RectLimits = {
@@ -80,12 +75,12 @@ export type CanvasEvents = {
 	canvasDrag: (info: CanvasGestureInfo) => void;
 	canvasDragEnd: (info: CanvasGestureInfo) => void;
 	bound: () => void;
-	containerObjectOver: (containerId: string, objectId: string) => void;
-	containerObjectOut: (containerId: string, objectId: string) => void;
+	containerObjectOver: (containerId: string, surfaceId: string) => void;
+	containerObjectOut: (containerId: string, surfaceId: string) => void;
 };
 
-export type ObjectData<Metadata> = {
-	type: 'object';
+export type SurfaceData<Metadata> = {
+	type: 'surface';
 	metadata: RefObject<Metadata>;
 	disableSelect: RefObject<boolean>;
 };
@@ -93,8 +88,8 @@ export type ObjectData<Metadata> = {
 export type ContainerData<Metadata> = {
 	type: 'container';
 	priority: number;
-	accepts?: (containmentEvent: ObjectContainmentEvent<Metadata>) => boolean;
-	overState: Atom<{ objectId: string | null; accepted: boolean }[]>;
+	accepts?: (containmentEvent: SurfaceContainmentEvent<Metadata>) => boolean;
+	overState: Atom<{ surfaceId: string | null; accepted: boolean }[]>;
 };
 
 export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
@@ -111,7 +106,7 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 
 	readonly selections = new Selections();
 	readonly bounds = new BoundsRegistry<
-		ObjectData<Metadata> | ContainerData<Metadata>
+		SurfaceData<Metadata> | ContainerData<Metadata>
 	>();
 
 	readonly tools = proxy({
@@ -233,11 +228,11 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 	};
 
 	getContainerCandidate = (
-		entry: BoundsRegistryEntry<ObjectData<Metadata>>,
+		entry: BoundsRegistryEntry<SurfaceData<Metadata>>,
 		input: CanvasGestureInput,
 	) => {
 		const data = entry.data;
-		if (!data || data.type !== 'object') {
+		if (!data || data.type !== 'surface') {
 			return;
 		}
 		const metadata = data.metadata.current;
@@ -247,7 +242,7 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 			(data) => data.type === 'container',
 		);
 
-		// don't allow objects to be contained by their children
+		// don't allow surfaces to be contained by their children
 		const allowedCollisions = collisions
 			.filter((c) => !c.transform.hasParent(entry.id))
 			.filter(
@@ -264,9 +259,9 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 		const accepted =
 			!winningContainer?.data.accepts ||
 			winningContainer.data.accepts({
-				objectId: entry.id,
-				objectMetadata: metadata ?? undefined,
-				objectBounds: entry.transform.bounds.value,
+				surfaceId: entry.id,
+				surfaceMetadata: metadata ?? undefined,
+				surfaceBounds: entry.transform.bounds.value,
 				ownBounds: winningContainer.transform.bounds.value,
 			});
 
@@ -278,11 +273,11 @@ export class Canvas<Metadata = any> extends EventSubscriber<CanvasEvents> {
 	};
 
 	/**
-	 * Gets the position of an object relative to the viewport
+	 * Gets the position of an surface relative to the viewport
 	 */
-	getViewportPosition = (objectId: string): Vector2 | null => {
+	getViewportPosition = (surfaceId: string): Vector2 | null => {
 		const worldPosition =
-			this.bounds.get(objectId)?.transform.worldPosition.value;
+			this.bounds.get(surfaceId)?.transform.worldPosition.value;
 		if (!worldPosition) return null;
 		return this.viewport.worldToViewport(worldPosition);
 	};

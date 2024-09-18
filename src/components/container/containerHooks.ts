@@ -1,19 +1,19 @@
 import { createContext, useContext, useState } from 'react';
 import { Atom } from 'signia';
 import { useAtom, useValue } from 'signia-react';
-import { ObjectContainmentEvent } from '../../logic/Canvas.js';
+import { SurfaceContainmentEvent } from '../../logic/Canvas.js';
 
 export interface ContainerConfig {
 	id: string;
-	accept?: (containmentEvent: ObjectContainmentEvent<any>) => boolean;
+	accept?: (containmentEvent: SurfaceContainmentEvent<any>) => boolean;
 	priority?: number;
 }
 
 export interface Container {
-	accepts?: (containmentEvent: ObjectContainmentEvent<any>) => boolean;
+	accepts?: (containmentEvent: SurfaceContainmentEvent<any>) => boolean;
 	id: string;
 	priority: number;
-	overState: Atom<{ objectId: string | null; accepted: boolean }[]>;
+	overState: Atom<{ surfaceId: string | null; accepted: boolean }[]>;
 }
 
 export function useCreateContainer(config: ContainerConfig): Container {
@@ -27,7 +27,7 @@ export function useCreateContainer(config: ContainerConfig): Container {
 	return value;
 }
 
-export function useContainerObjectsOver(container: Container) {
+export function useContainerSurfacesOver(container: Container) {
 	return useValue(container.overState);
 }
 

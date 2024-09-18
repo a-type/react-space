@@ -3,22 +3,20 @@ import { useId, useRef } from 'react';
 import {
 	CanvasGestureInput,
 	ContainerData,
-	ObjectData,
+	SurfaceData,
 } from '../../logic/Canvas.js';
 import { Vector2 } from '../../types.js';
 import { useClaimedGestures } from '../canvas/canvasHooks.js';
 import { useCanvas } from '../canvas/CanvasProvider.js';
 import {
-	claimGesture,
 	GestureClaimDetail,
-	hasClaim,
 	useClaimGesture,
 } from '../gestures/useGestureState.js';
 import { BoundsRegistryEntry } from '../../logic/BoundsRegistry.js';
 
 export interface BoxRegionProps {
-	onPending?: (objectIds: Array<string>, info: CanvasGestureInput) => void;
-	onEnd?: (objectIds: Array<string>, info: CanvasGestureInput) => void;
+	onPending?: (surfaceIds: Array<string>, info: CanvasGestureInput) => void;
+	onEnd?: (surfaceIds: Array<string>, info: CanvasGestureInput) => void;
 	tolerance?: number;
 	className?: string;
 	id?: string;
@@ -27,7 +25,7 @@ export interface BoxRegionProps {
 }
 
 export type BoxRegionFilterFn = (
-	entry: BoundsRegistryEntry<ObjectData<any> | ContainerData<any>>,
+	entry: BoundsRegistryEntry<SurfaceData<any> | ContainerData<any>>,
 ) => boolean;
 
 const defaultClaim = (event: GestureClaimDetail) => {
@@ -82,29 +80,29 @@ export function BoxRegion({
 				let entries = canvas.bounds.getIntersections(
 					rect,
 					tolerance,
-					(data) => data.type === 'object',
+					(data) => data.type === 'surface',
 				);
 				if (filter) {
 					entries = entries.filter(filter);
 				}
-				const objectIds = entries.map((entry) => entry.id);
+				const surfaceIds = entries.map((entry) => entry.id);
 				// this is all just logic to diff as much as possible...
-				if (objectIds.length !== previousPending.current.length) {
-					onPending?.(objectIds, input);
-				} else if (objectIds.length === 0) {
+				if (surfaceIds.length !== previousPending.current.length) {
+					onPending?.(surfaceIds, input);
+				} else if (surfaceIds.length === 0) {
 					if (previousPending.current.length !== 0) {
-						onPending?.(objectIds, input);
+						onPending?.(surfaceIds, input);
 					}
 				} else {
-					for (const entry of objectIds) {
+					for (const entry of surfaceIds) {
 						if (!previousPending.current.includes(entry)) {
-							onPending?.(objectIds, input);
+							onPending?.(surfaceIds, input);
 							break;
 						}
 					}
 				}
 
-				previousPending.current = objectIds;
+				previousPending.current = surfaceIds;
 			},
 			onDragEnd: (input) => {
 				let entries = canvas.bounds.getIntersections(
@@ -115,16 +113,16 @@ export function BoxRegion({
 						height: height.get(),
 					},
 					tolerance,
-					(data) => data.type === 'object',
+					(data) => data.type === 'surface',
 				);
 				if (filter) {
 					entries = entries.filter(filter);
 				}
-				const objectIds = entries.map((entry) => entry.id);
+				const surfaceIds = entries.map((entry) => entry.id);
 
 				previousPending.current.length = 0;
 				onPending?.(previousPending.current, input);
-				onCommit?.(objectIds, input);
+				onCommit?.(surfaceIds, input);
 
 				spring.set({ x: 0, y: 0, width: 0, height: 0 });
 				originRef.current.x = 0;

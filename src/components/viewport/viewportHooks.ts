@@ -157,7 +157,7 @@ export function useViewportGestureControls(
 	const bindPassiveGestures = useGesture(
 		{
 			onDrag: (state) => {
-				// ignore gestures claimed by objects or regions
+				// ignore gestures claimed by upstream canvas objects
 				if (gestureState.claimType) {
 					return;
 				}

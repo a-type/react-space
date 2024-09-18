@@ -1,21 +1,15 @@
-import { isMiddleClick, isRightClick, stopPropagation } from '@a-type/utils';
-import {
-	CSSProperties,
-	HTMLAttributes,
-	PointerEvent,
-	SyntheticEvent,
-	useCallback,
-} from 'react';
+import { stopPropagation } from '@a-type/utils';
+import { CSSProperties, HTMLAttributes, useCallback } from 'react';
 import { track, useValue } from 'signia-react';
 import { useDragLocked } from '../canvas/canvasHooks.js';
 import {
 	GestureClaimDetail,
 	useClaimGesture,
 } from '../gestures/useGestureState.js';
-import { useObject } from './Object.js';
+import { useSurface } from './Surface.js';
 import { Slot } from '@radix-ui/react-slot';
 
-export interface ObjectHandleProps extends HTMLAttributes<HTMLDivElement> {
+export interface SurfaceHandleProps extends HTMLAttributes<HTMLDivElement> {
 	disabled?: boolean;
 	asChild?: boolean;
 }
@@ -24,13 +18,13 @@ const baseStyle: CSSProperties = {
 	touchAction: 'none',
 };
 
-export const ObjectHandle = track(function ObjectHandle({
+export const SurfaceHandle = track(function ObjectHandle({
 	disabled,
 	style: userStyle,
 	asChild,
 	...rest
-}: ObjectHandleProps) {
-	const obj = useObject();
+}: SurfaceHandleProps) {
+	const obj = useSurface();
 	const handleProps = useDragHandle(disabled);
 
 	/**
@@ -88,15 +82,15 @@ export const disableDragProps = {
 };
 
 function useDragHandle(disabled = false) {
-	const object = useObject();
+	const surface = useSurface();
 	const dragLocked = useDragLocked();
 
 	return useClaimGesture(
-		'object',
-		object.id,
+		'surface',
+		surface.id,
 		(event) => {
-			// don't override other object claims
-			if (event.existingClaimType === 'object') return false;
+			// don't override other surface claims
+			if (event.existingClaimType === 'surface') return false;
 			if (dragLocked || disabled) return false;
 			if (isUnacceptableGesture(event)) return false;
 			return true;

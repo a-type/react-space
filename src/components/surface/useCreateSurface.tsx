@@ -17,7 +17,7 @@ import {
 	CanvasGestureEvent,
 	CanvasGestureInput,
 	ContainerData,
-	ObjectData,
+	SurfaceData,
 } from '../../logic/Canvas.js';
 import { isDrag } from '../../logic/gestureUtils.js';
 import { TransformInit } from '../../logic/Transform.js';
@@ -25,7 +25,7 @@ import { useClaimedGestures } from '../canvas/canvasHooks.js';
 import { useCanvas } from '../canvas/CanvasProvider.js';
 import { CONTAINER_STATE } from './private.js';
 
-export interface CanvasObject<Metadata = any> {
+export interface CanvasSurface<Metadata = any> {
 	id: string;
 	ref: Ref<HTMLDivElement>;
 	draggingSignal: Atom<boolean>;
@@ -33,24 +33,24 @@ export interface CanvasObject<Metadata = any> {
 	disableAnimationSignal: Atom<boolean>;
 	update: (updates: Omit<RegistryTransformInit, 'size'>) => void;
 	metadataRef: RefObject<Metadata | undefined>;
-	entry: BoundsRegistryEntry<ObjectData<Metadata>>;
+	entry: BoundsRegistryEntry<SurfaceData<Metadata>>;
 	[CONTAINER_STATE]: Atom<{ overId: string | null; accepted: boolean }>;
 	disableSelect: RefObject<boolean>;
 }
 
 const empty = {};
 
-const objectRegistry: Record<string, boolean> = {};
+const surfaceIdRegistry: Record<string, boolean> = {};
 
 function defaultOnDrag(
 	_info: CanvasGestureEvent,
-	_self: CanvasObject,
+	_self: CanvasSurface,
 	_canvas: Canvas,
 ) {}
 
 function defaultOnDrop(
 	info: CanvasGestureEvent,
-	self: CanvasObject,
+	self: CanvasSurface,
 	_canvas: Canvas,
 ) {
 	if (info.rejectedContainerId) {
@@ -66,7 +66,7 @@ function defaultOnDrop(
 
 function defaultOnTap(
 	info: CanvasGestureEvent,
-	self: CanvasObject,
+	self: CanvasSurface,
 	canvas: Canvas,
 ) {
 	if (self.disableSelect.current) return;
@@ -78,7 +78,7 @@ function defaultOnTap(
 	}
 }
 
-export function useCreateObject<Metadata = any>({
+export function useCreateSurface<Metadata = any>({
 	id,
 	initialTransform = empty,
 	metadata,
@@ -92,32 +92,32 @@ export function useCreateObject<Metadata = any>({
 	metadata?: Metadata;
 	onDrag?: (
 		event: CanvasGestureEvent,
-		self: CanvasObject,
+		self: CanvasSurface,
 		canvas: Canvas,
 	) => void;
 	onDrop?: (
 		event: CanvasGestureEvent,
-		self: CanvasObject,
+		self: CanvasSurface,
 		canvas: Canvas,
 	) => void;
 	onTap?: (
 		event: CanvasGestureEvent,
-		self: CanvasObject,
+		self: CanvasSurface,
 		canvas: Canvas,
 	) => void;
 	disableSelect?: boolean;
-}): CanvasObject<Metadata> {
+}): CanvasSurface<Metadata> {
 	const canvas = useCanvas();
 
 	useEffect(() => {
-		if (objectRegistry[id]) {
+		if (surfaceIdRegistry[id]) {
 			console.warn(
 				`Object with ID ${id} already exists in the canvas. This is not allowed and will cause bizarre behavior.`,
 			);
 		} else {
-			objectRegistry[id] = true;
+			surfaceIdRegistry[id] = true;
 			return () => {
-				delete objectRegistry[id];
+				delete surfaceIdRegistry[id];
 			};
 		}
 	}, [id]);
@@ -146,10 +146,10 @@ export function useCreateObject<Metadata = any>({
 		() =>
 			(canvas.bounds.get(id) ??
 				canvas.bounds.register(id, initialTransform, {
-					type: 'object',
+					type: 'surface',
 					metadata: metadataRef,
 					disableSelect,
-				})) as BoundsRegistryEntry<ObjectData<Metadata>>,
+				})) as BoundsRegistryEntry<SurfaceData<Metadata>>,
 	);
 
 	// external calls to update are prevented during drag. any calls need to be
@@ -174,12 +174,12 @@ export function useCreateObject<Metadata = any>({
 				const parent = canvas.bounds.get(changes.parent);
 				if (!parent) {
 					console.warn(
-						`Cannot update parent of object ${entry.id} to ${changes.parent}; container with that ID was not found in the canvas.`,
+						`Cannot update parent of surface ${entry.id} to ${changes.parent}; container with that ID was not found in the canvas.`,
 					);
 					changesAsFulfilled.parent = null;
 				} else if (parent?.data.type !== 'container') {
 					console.warn(
-						`Cannot update parent of object ${entry.id} to ${changes.parent}; object with that ID is not a container.`,
+						`Cannot update parent of surface ${entry.id} to ${changes.parent}; surface with that ID is not a container.`,
 					);
 					changesAsFulfilled.parent = null;
 				} else {
@@ -206,7 +206,7 @@ export function useCreateObject<Metadata = any>({
 	});
 
 	// should this be stabilized?
-	const object: CanvasObject = {
+	const surface: CanvasSurface = {
 		id,
 		ref: entry.ref,
 		draggingSignal,
@@ -232,7 +232,7 @@ export function useCreateObject<Metadata = any>({
 					return;
 				}
 
-				// if user grabs an object that's not part of the active selection,
+				// if user grabs an surface that's not part of the active selection,
 				// clear the selection
 				if (!canvas.selections.has(id)) {
 					if (input.shift || input.ctrlOrMeta) {
@@ -275,7 +275,7 @@ export function useCreateObject<Metadata = any>({
 
 				entry.transform.setGestureOffset(input.distance);
 
-				// check if this object intersects a container
+				// check if this surface intersects a container
 				const containerCandidate = canvas.getContainerCandidate(entry, input);
 				if (containerCandidate) {
 					const { container, accepted } = containerCandidate;
@@ -285,28 +285,28 @@ export function useCreateObject<Metadata = any>({
 						containerCandidateRef.current.id !== container.id
 					) {
 						containerCandidateRef.current.data.overState.update((v) => {
-							const index = v.findIndex((o) => o.objectId === entry.id);
+							const index = v.findIndex((o) => o.surfaceId === entry.id);
 							if (index !== -1) {
-								return v.filter((o) => o.objectId !== entry.id);
+								return v.filter((o) => o.surfaceId !== entry.id);
 							}
 							return v;
 						});
 					}
-					// update container's state to indicate this object is a candidate.
+					// update container's state to indicate this surface is a candidate.
 					container.data.overState.update((v) => {
-						const existing = v.findIndex((o) => o.objectId === entry.id);
+						const existing = v.findIndex((o) => o.surfaceId === entry.id);
 						if (existing !== -1) {
 							if (v[existing].accepted === accepted) {
 								// no change, no need to update.
 								return v;
 							}
-							v[existing] = { objectId: entry.id, accepted };
+							v[existing] = { surfaceId: entry.id, accepted };
 							// I think reallocating is required for signal to update.
 							return [...v];
 						}
-						return [...v, { objectId: entry.id, accepted }];
+						return [...v, { surfaceId: entry.id, accepted }];
 					});
-					// also update object's own state
+					// also update surface's own state
 					containerState.set({ overId: container.id, accepted });
 					if (accepted) {
 						// add container to gesture info
@@ -321,9 +321,9 @@ export function useCreateObject<Metadata = any>({
 						// TODO: repeated often, should be abstracted somewhere
 						// reset container's state
 						containerCandidateRef.current.data.overState.update((v) => {
-							const index = v.findIndex((o) => o.objectId === entry.id);
+							const index = v.findIndex((o) => o.surfaceId === entry.id);
 							if (index !== -1) {
-								return v.filter((o) => o.objectId !== entry.id);
+								return v.filter((o) => o.surfaceId !== entry.id);
 							}
 							return v;
 						});
@@ -337,9 +337,9 @@ export function useCreateObject<Metadata = any>({
 
 				// bypass external update block (works because following code is sync)
 				preventedExternalUpdateRef.current.active = false;
-				onDrag?.(gestureEventRef.current, object, canvas);
+				onDrag?.(gestureEventRef.current, surface, canvas);
 				if (!gestureEventRef.current.defaultPrevented) {
-					defaultOnDrag(gestureEventRef.current, object, canvas);
+					defaultOnDrag(gestureEventRef.current, surface, canvas);
 				}
 				preventedExternalUpdateRef.current.active = true;
 			},
@@ -364,9 +364,9 @@ export function useCreateObject<Metadata = any>({
 					// just in case.
 					blockInteractionSignal.set(false);
 					disableAnimationSignal.set(false);
-					onTap?.(gestureEventRef.current, object, canvas);
+					onTap?.(gestureEventRef.current, surface, canvas);
 					if (!gestureEventRef.current.defaultPrevented) {
-						defaultOnTap(gestureEventRef.current, object, canvas);
+						defaultOnTap(gestureEventRef.current, surface, canvas);
 					}
 					return;
 				} else {
@@ -383,7 +383,7 @@ export function useCreateObject<Metadata = any>({
 							disableAnimationSignal.set(false);
 						}, 100);
 					} else {
-						// otherwise re-enable immediately so the object animates into position during
+						// otherwise re-enable immediately so the surface animates into position during
 						// a cancelled gesture or if the user sets a different position (like snapped).
 						disableAnimationSignal.set(false);
 					}
@@ -392,7 +392,7 @@ export function useCreateObject<Metadata = any>({
 					if (container) {
 						// reset container's state
 						container.data.overState.update((v) =>
-							v.filter((o) => o.objectId !== entry.id),
+							v.filter((o) => o.surfaceId !== entry.id),
 						);
 					}
 					transact(() => {
@@ -403,9 +403,9 @@ export function useCreateObject<Metadata = any>({
 							update(preventedExternalUpdateRef.current.prevented);
 							preventedExternalUpdateRef.current.prevented = undefined;
 						}
-						onDrop?.(gestureEventRef.current, object, canvas);
+						onDrop?.(gestureEventRef.current, surface, canvas);
 						if (!gestureEventRef.current.defaultPrevented) {
-							defaultOnDrop(gestureEventRef.current, object, canvas);
+							defaultOnDrop(gestureEventRef.current, surface, canvas);
 						}
 						entry.transform.discardGestureOffset();
 						// don't turn prevent external updates back on.
@@ -421,7 +421,7 @@ export function useCreateObject<Metadata = any>({
 		id,
 	);
 
-	return object;
+	return surface;
 }
 
 function useGestureEvent() {

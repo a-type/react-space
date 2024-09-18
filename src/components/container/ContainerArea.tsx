@@ -2,7 +2,7 @@ import { HTMLAttributes, useEffect, useRef, useSyncExternalStore } from 'react';
 import { Container } from './containerHooks.js';
 import { useCanvas } from '../canvas/CanvasProvider.js';
 import { ContainerProvider } from './containerHooks.js';
-import { useMaybeObject } from '../object/Object.js';
+import { useMaybeSurface } from '../surface/Surface.js';
 import { useMergedRef } from '../../hooks.js';
 
 export interface ContainerAreaProps extends HTMLAttributes<HTMLDivElement> {
@@ -16,7 +16,7 @@ export interface ContainerAreaProps extends HTMLAttributes<HTMLDivElement> {
  */
 export function ContainerArea({ value, ...rest }: ContainerAreaProps) {
 	const canvas = useCanvas();
-	const object = useMaybeObject();
+	const surface = useMaybeSurface();
 
 	const entry = useSyncExternalStore(
 		(cb) =>
@@ -27,7 +27,7 @@ export function ContainerArea({ value, ...rest }: ContainerAreaProps) {
 			canvas.bounds.get(value.id) ??
 			canvas.bounds.register(
 				value.id,
-				{ parent: object?.id },
+				{ parent: surface?.id },
 				{
 					type: 'container',
 					accepts: value.accepts,
@@ -37,11 +37,11 @@ export function ContainerArea({ value, ...rest }: ContainerAreaProps) {
 			),
 	);
 	useEffect(() => {
-		const objectEntry = object ? canvas.bounds.get(object.id) : null;
+		const surfaceEntry = surface ? canvas.bounds.get(surface.id) : null;
 		entry.transform.apply({
-			parent: objectEntry?.transform ?? null,
+			parent: surfaceEntry?.transform ?? null,
 		});
-	}, [canvas, entry, object]);
+	}, [canvas, entry, surface]);
 
 	const positionRef = useRef<HTMLDivElement>(null);
 	const finalRef = useMergedRef<HTMLDivElement>(positionRef, entry.ref);

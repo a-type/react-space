@@ -6,21 +6,21 @@ import {
 	CanvasGestureInfo,
 	CanvasGestureInput,
 	ContainerData,
-	ObjectData,
+	SurfaceData,
 } from '../../logic/Canvas.js';
 import { useCanvas } from './CanvasProvider.js';
 import { gestureState } from '../gestures/useGestureState.js';
 
-export function useObjectEntry(objectId: string) {
+export function useSurfaceEntry(surfaceId: string) {
 	const canvas = useCanvas();
 	return useSyncExternalStore(
 		(cb) =>
 			canvas.bounds.subscribe('entryReplaced', (id) => {
-				if (id === objectId) cb();
+				if (id === surfaceId) cb();
 			}),
 		() =>
-			canvas.bounds.get(objectId) as BoundsRegistryEntry<
-				ObjectData<any>
+			canvas.bounds.get(surfaceId) as BoundsRegistryEntry<
+				SurfaceData<any>
 			> | null,
 	);
 }
@@ -39,18 +39,18 @@ export function useContainerEntry(containerId: string) {
 	);
 }
 
-export function useObjectElement(objectId: string | null) {
+export function useSurfaceElement(surfaceId: string | null) {
 	const canvas = useCanvas();
 	return useSyncExternalStore(
 		(cb) =>
 			canvas.bounds.subscribe('elementChanged', (id) => {
-				if (id === objectId) cb();
+				if (id === surfaceId) cb();
 			}),
-		() => (objectId ? (canvas.bounds.get(objectId)?.element ?? null) : null),
+		() => (surfaceId ? (canvas.bounds.get(surfaceId)?.element ?? null) : null),
 	);
 }
-
-export const useContainerElement = useObjectElement;
+// implementation is identical.
+export const useContainerElement = useSurfaceElement;
 
 export function useObjectIds() {
 	const canvas = useCanvas();
@@ -103,7 +103,7 @@ export function useClaimedGestures(
 		onDragEnd?: (info: CanvasGestureInput) => void;
 		onTap?: (info: CanvasGestureInput) => void;
 	},
-	objectId: string,
+	surfaceId: string,
 ) {
 	const canvas = useCanvas();
 	const handlersRef = useRef(handlers);
@@ -112,34 +112,34 @@ export function useClaimedGestures(
 	useEffect(() => {
 		const unsubs = [
 			canvas.subscribe('claimedDragStart', (info) => {
-				const selected = canvas.selections.selectedIds.has(objectId);
+				const selected = canvas.selections.selectedIds.has(surfaceId);
 				if (
-					(selected && gestureState.claimType === 'object') ||
-					info.targetId === objectId
+					(selected && gestureState.claimType === 'surface') ||
+					info.targetId === surfaceId
 				) {
 					handlersRef.current.onDragStart?.(info);
 				}
 			}),
 			canvas.subscribe('claimedDrag', (info) => {
-				const selected = canvas.selections.selectedIds.has(objectId);
+				const selected = canvas.selections.selectedIds.has(surfaceId);
 				if (
-					(selected && gestureState.claimType === 'object') ||
-					info.targetId === objectId
+					(selected && gestureState.claimType === 'surface') ||
+					info.targetId === surfaceId
 				) {
 					handlersRef.current.onDrag?.(info);
 				}
 			}),
 			canvas.subscribe('claimedDragEnd', (info) => {
-				const selected = canvas.selections.selectedIds.has(objectId);
+				const selected = canvas.selections.selectedIds.has(surfaceId);
 				if (
-					(selected && gestureState.claimType === 'object') ||
-					info.targetId === objectId
+					(selected && gestureState.claimType === 'surface') ||
+					info.targetId === surfaceId
 				) {
 					handlersRef.current.onDragEnd?.(info);
 				}
 			}),
 			canvas.subscribe('claimedTap', (info) => {
-				if (info.targetId === objectId) {
+				if (info.targetId === surfaceId) {
 					handlersRef.current.onTap?.(info);
 				}
 			}),
@@ -148,37 +148,40 @@ export function useClaimedGestures(
 		return () => {
 			unsubs.forEach((fn) => fn());
 		};
-	}, [canvas, objectId]);
+	}, [canvas, surfaceId]);
 }
 
-export function useIsSelected(objectId: string) {
+export function useIsSelected(surfaceId: string) {
 	const canvas = useCanvas();
 	const selected = useSyncExternalStore(
-		(cb) => canvas.selections.subscribe(`change:${objectId}`, cb),
-		() => canvas.selections.selectedIds.has(objectId),
+		(cb) => canvas.selections.subscribe(`change:${surfaceId}`, cb),
+		() => canvas.selections.selectedIds.has(surfaceId),
 	);
 	const exclusive = useSyncExternalStore(
 		(cb) => canvas.selections.subscribe('change', cb),
 		() =>
 			canvas.selections.selectedIds.size === 1 &&
-			canvas.selections.selectedIds.has(objectId),
+			canvas.selections.selectedIds.has(surfaceId),
 	);
 	const pending = useSyncExternalStore(
-		(cb) => canvas.selections.subscribe(`pendingChange:${objectId}`, cb),
-		() => canvas.selections.pendingIds.has(objectId),
+		(cb) => canvas.selections.subscribe(`pendingChange:${surfaceId}`, cb),
+		() => canvas.selections.pendingIds.has(surfaceId),
 	);
 
 	return { selected, exclusive, pending };
 }
 
-export function useIsPendingSelection(objectId: string) {
+export function useIsPendingSelection(surfaceId: string) {
 	const canvas = useCanvas();
 	const [pending, setPending] = useState(() =>
-		canvas.selections.pendingIds.has(objectId),
+		canvas.selections.pendingIds.has(surfaceId),
 	);
 	useEffect(() => {
-		return canvas.selections.subscribe(`pendingChange:${objectId}`, setPending);
-	}, [canvas.selections, objectId]);
+		return canvas.selections.subscribe(
+			`pendingChange:${surfaceId}`,
+			setPending,
+		);
+	}, [canvas.selections, surfaceId]);
 
 	return pending;
 }

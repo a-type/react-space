@@ -1,21 +1,21 @@
 import { HTMLAttributes } from 'react';
-import { useObject } from './Object.js';
+import { useSurface } from './Surface.js';
 import { useSpring, animated } from '@react-spring/web';
 import { useValue } from 'signia-react';
 import { SPRINGS } from '../../constants.js';
 
-export interface ObjectPickupEffectProps
+export interface SurfacePickupEffectProps
 	extends HTMLAttributes<HTMLDivElement> {}
 
-export function ObjectPickupEffect({
+export function SurfacePickupEffect({
 	style,
 	...rest
-}: ObjectPickupEffectProps) {
-	const object = useObject();
+}: SurfacePickupEffectProps) {
+	const surface = useSurface();
 	// by using this signal which fires a little after actual drop,
 	// we can preserve visual continuity during a reparent / element
 	// rebuild upon container change.
-	const dragging = useValue(object.blockInteractionSignal);
+	const dragging = useValue(surface.blockInteractionSignal);
 	const pickupSpring = useSpring({
 		scale: dragging ? 1.1 : 1,
 		config: SPRINGS.WOBBLY,

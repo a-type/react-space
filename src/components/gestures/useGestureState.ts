@@ -1,6 +1,4 @@
-import { PointerEvent as ReactPointerEvent, useCallback } from 'react';
 import { proxy, useSnapshot } from 'valtio';
-import { useStableCallback } from '../../hooks.js';
 import { useCanvas } from '../canvas/CanvasProvider.js';
 import { useDrag } from '@use-gesture/react';
 import {
@@ -11,7 +9,7 @@ import {
 
 export const gestureState = proxy({
 	claimedBy: null as string | null,
-	claimType: null as 'object' | 'tool' | 'canvas' | null,
+	claimType: null as 'surface' | 'tool' | 'canvas' | null,
 });
 
 export function useGestureState() {
@@ -24,16 +22,16 @@ export function resetGestureState() {
 }
 
 export function claimGesture(type: 'canvas'): void;
-export function claimGesture(type: 'object' | 'tool', id: string): void;
-export function claimGesture(type: 'object' | 'tool' | 'canvas', id?: string) {
+export function claimGesture(type: 'surface' | 'tool', id: string): void;
+export function claimGesture(type: 'surface' | 'tool' | 'canvas', id?: string) {
 	console.log('claiming for', type, id);
 	gestureState.claimedBy = id ?? null;
 	gestureState.claimType = type;
 }
 
 export function hasClaim(type: 'canvas'): boolean;
-export function hasClaim(type: 'object' | 'tool', id: string): boolean;
-export function hasClaim(type: 'object' | 'tool' | 'canvas', id?: string) {
+export function hasClaim(type: 'surface' | 'tool', id: string): boolean;
+export function hasClaim(type: 'surface' | 'tool' | 'canvas', id?: string) {
 	return (
 		gestureState.claimType === type && gestureState.claimedBy === (id ?? null)
 	);
@@ -48,18 +46,18 @@ export interface GestureClaimDetail {
 	ctrlOrMeta: boolean;
 	alt: boolean;
 	target: EventTarget;
-	existingClaimType: 'object' | 'tool' | 'canvas' | null;
+	existingClaimType: 'surface' | 'tool' | 'canvas' | null;
 	existingClaimId: string | null;
 }
 
 /**
- * Required configuration to claim a gesture for an object when
+ * Required configuration to claim a gesture for an surface when
  * the interaction begins. You must either pass the returned props
  * to an element, or pass onCanvas=true to attach to the root Canvas
  * gesture layer.
  */
 export function useClaimGesture(
-	type: 'object' | 'tool',
+	type: 'surface' | 'tool',
 	id: string,
 	filter: (detail: GestureClaimDetail) => boolean = () => true,
 	{

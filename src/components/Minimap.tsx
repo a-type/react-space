@@ -2,7 +2,7 @@ import { animated, useSpring } from '@react-spring/web';
 import { useGesture } from '@use-gesture/react';
 import { Fragment, JSX, useEffect, useRef } from 'react';
 import { react } from 'signia';
-import { useObjectIds, useObjectEntry } from './canvas/canvasHooks.js';
+import { useObjectIds, useSurfaceEntry } from './canvas/canvasHooks.js';
 import { useViewport } from './viewport/ViewportRoot.js';
 import { Canvas } from '../logic/Canvas.js';
 
@@ -76,7 +76,7 @@ export function MinimapRect({
 	objectId: string;
 	className?: string;
 }) {
-	const entry = useObjectEntry(objectId);
+	const entry = useSurfaceEntry(objectId);
 	const ref = useRef<SVGRectElement>(null);
 
 	useEffect(() => {

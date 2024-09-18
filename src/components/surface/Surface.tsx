@@ -10,19 +10,19 @@ import { react } from 'signia';
 import { useComputed, useValue } from 'signia-react';
 import { useMergedRef } from '../../hooks.js';
 import { BoundsRegistryEntry } from '../../logic/BoundsRegistry.js';
-import { ObjectData } from '../../logic/Canvas.js';
+import { SurfaceData } from '../../logic/Canvas.js';
 import { useRerasterize } from '../../logic/rerasterizeSignal.js';
 import { ContainerPortal } from '../container/ContainerPortal.js';
 import { CONTAINER_STATE } from './private.js';
 import { useLiveElementPosition } from './signalHooks.js';
-import { CanvasObject } from './useCreateObject.js';
+import { CanvasSurface } from './useCreateSurface.js';
 import { animated } from '@react-spring/web';
 
-export interface ObjectProps extends HTMLAttributes<HTMLDivElement> {
-	value: CanvasObject<any>;
+export interface SurfaceProps extends HTMLAttributes<HTMLDivElement> {
+	value: CanvasSurface<any>;
 	/**
 	 * A content wrapping element is rendered to ensure any styling
-	 * changes you apply to the object don't interfere with critical
+	 * changes you apply to the surface don't interfere with critical
 	 * layout properties. You can disable this with this prop, but
 	 * you should avoid applying any CSS properties like transform!
 	 */
@@ -38,13 +38,13 @@ const contentStyle: CSSProperties = {
 	position: 'relative',
 };
 
-export const Object = function Object({
+export const Surface = function Surface({
 	value,
 	children,
 	style: userStyle,
 	disableContentWrapper,
 	...rest
-}: ObjectProps) {
+}: SurfaceProps) {
 	const ref = useRef<HTMLDivElement>(null);
 	useRerasterize(ref);
 
@@ -58,7 +58,7 @@ export const Object = function Object({
 			}
 		:	baseStyle;
 
-	const renderProps = useObjectRendering(value, entry);
+	const renderProps = useSurfaceRendering(value, entry);
 
 	const finalRef = useMergedRef<HTMLDivElement>(
 		ref,
@@ -76,7 +76,7 @@ export const Object = function Object({
 
 	return (
 		<ContainerPortal containerId={parent}>
-			<ObjectContext.Provider value={value}>
+			<SurfaceContext.Provider value={value}>
 				<animated.div
 					ref={finalRef}
 					style={{
@@ -90,7 +90,7 @@ export const Object = function Object({
 					{disableContentWrapper ?
 						children
 					:	<div
-							data-purpose="object-content"
+							data-purpose="surface-content"
 							style={contentStyle}
 							data-container-over={!!containerState.overId}
 							data-container-accepted={!!containerState.accepted}
@@ -100,33 +100,33 @@ export const Object = function Object({
 						</div>
 					}
 				</animated.div>
-			</ObjectContext.Provider>
+			</SurfaceContext.Provider>
 		</ContainerPortal>
 	);
 };
 
-const ObjectContext = createContext<CanvasObject<any> | null>(null);
+const SurfaceContext = createContext<CanvasSurface<any> | null>(null);
 
-export function useObject() {
-	const val = useContext(ObjectContext);
+export function useSurface() {
+	const val = useContext(SurfaceContext);
 	if (!val) {
 		throw new Error('useObject must be used inside an Object');
 	}
 	return val;
 }
 
-export function useMaybeObject() {
-	return useContext(ObjectContext);
+export function useMaybeSurface() {
+	return useContext(SurfaceContext);
 }
 
-function useObjectRendering(
-	object: CanvasObject,
-	entry: BoundsRegistryEntry<ObjectData<any>>,
+function useSurfaceRendering(
+	surface: CanvasSurface,
+	entry: BoundsRegistryEntry<SurfaceData<any>>,
 ) {
 	const renderedPosition = useComputed(
-		`object ${object.id} rendered position`,
+		`surface ${surface.id} rendered position`,
 		() => {
-			const dragging = object.draggingSignal.value;
+			const dragging = surface.draggingSignal.value;
 			const origin = entry?.transform.origin.value;
 			const worldOrigin = entry?.transform.worldOrigin.value;
 
@@ -135,19 +135,19 @@ function useObjectRendering(
 			}
 			return origin;
 		},
-		[object, entry],
+		[surface, entry],
 	);
 
 	const positionProps = useLiveElementPosition<HTMLDivElement>(
 		renderedPosition,
-		object.disableAnimationSignal,
+		surface.disableAnimationSignal,
 	);
 
 	// while we're here, add additional style data
-	const draggingSignal = object.draggingSignal;
-	const containerState = object[CONTAINER_STATE];
+	const draggingSignal = surface.draggingSignal;
+	const containerState = surface[CONTAINER_STATE];
 	useEffect(() => {
-		return react('object pickup', () => {
+		return react('surface pickup', () => {
 			const dragging = draggingSignal.value;
 			const overId = !!containerState.value.overId;
 

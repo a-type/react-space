@@ -2,23 +2,18 @@ import type { Meta, StoryObj } from '@storybook/react';
 import * as React from 'react';
 import { useCallback } from 'react';
 import {
-	useContainerObjectsOver,
-	useCreateContainer,
-} from '../components/container/containerHooks.js';
-import { useCreateObject } from '../components/object/useCreateObject.js';
-import {
 	BoxSelect,
-	CanvasOverlay,
 	CanvasRoot,
 	CanvasSvgLayer,
 	CanvasWallpaper,
 	ContainerArea,
 	DebugLayer,
-	Minimap,
-	NonDraggable,
-	Object,
-	ObjectHandle,
-	ObjectPickupEffect,
+	Surface,
+	SurfaceHandle,
+	SurfacePickupEffect,
+	useCreateSurface,
+	useCreateContainer,
+	useContainerSurfacesOver,
 	Size,
 	useCanvas,
 	useCreateCanvas,
@@ -148,7 +143,7 @@ function DemoNode({
 	getOrigin?: (position: Vector2, size: Size) => Vector2;
 	children?: React.ReactNode;
 }) {
-	const canvasObject = useCreateObject({
+	const canvasSurface = useCreateSurface({
 		id,
 		initialTransform: {
 			position: initialPosition,
@@ -180,8 +175,8 @@ function DemoNode({
 	const { selected, pending } = useIsSelected(id);
 
 	return (
-		<Object className="node" value={canvasObject} onDoubleClick={zoomToFit}>
-			<ObjectHandle
+		<Surface className="node" value={canvasSurface} onDoubleClick={zoomToFit}>
+			<SurfaceHandle
 				asChild
 				className={clsx('handle', selected && 'selected', pending && 'pending')}
 				style={{
@@ -189,9 +184,9 @@ function DemoNode({
 					height: size,
 				}}
 			>
-				<ObjectPickupEffect>{children}</ObjectPickupEffect>
-			</ObjectHandle>
-		</Object>
+				<SurfacePickupEffect>{children}</SurfacePickupEffect>
+			</SurfaceHandle>
+		</Surface>
 	);
 }
 
@@ -206,7 +201,7 @@ function AutonomousNode({
 	size: number;
 	children?: React.ReactNode;
 }) {
-	const canvasObject = useCreateObject({
+	const canvasSurface = useCreateSurface({
 		id,
 		initialTransform: {
 			position: initialPosition,
@@ -217,7 +212,7 @@ function AutonomousNode({
 
 	React.useEffect(() => {
 		const interval = setInterval(() => {
-			canvasObject.update({
+			canvasSurface.update({
 				position: {
 					x: initialPosition.x + Math.random() * 200 - 100,
 					y: initialPosition.y + Math.random() * 200 - 100,
@@ -227,14 +222,14 @@ function AutonomousNode({
 		return () => {
 			clearInterval(interval);
 		};
-	}, [canvasObject.update, initialPosition]);
+	}, [canvasSurface.update, initialPosition]);
 
 	return (
-		<Object className="node" value={canvasObject}>
-			<ObjectHandle className="handle" style={{ width: size, height: size }}>
+		<Surface className="node" value={canvasSurface}>
+			<SurfaceHandle className="handle" style={{ width: size, height: size }}>
 				{children}
-			</ObjectHandle>
-		</Object>
+			</SurfaceHandle>
+		</Surface>
 	);
 }
 
@@ -249,17 +244,17 @@ function Container({
 }) {
 	const container = useCreateContainer({
 		id,
-		accept: (event) => event.objectId === '1',
+		accept: (event) => event.surfaceId === '1',
 		priority,
 	});
-	const overObjects = useContainerObjectsOver(container);
-	const canDrop = overObjects.some((o) => o.accepted);
+	const overSurfaces = useContainerSurfacesOver(container);
+	const canDrop = overSurfaces.some((o) => o.accepted);
 
 	return (
 		<ContainerArea
 			value={container}
 			className={clsx('container', { dance: canDrop })}
-			data-object-over={!!overObjects.length}
+			data-object-over={!!overSurfaces.length}
 			data-object-accepted={canDrop}
 			style={{
 				position: 'absolute',
@@ -279,7 +274,7 @@ function MovableContainer({
 	priority: number;
 	position: Vector2;
 }) {
-	const canvasObject = useCreateObject({
+	const canvasSurface = useCreateSurface({
 		id,
 		initialTransform: {
 			position: initialPosition,
@@ -292,27 +287,27 @@ function MovableContainer({
 		id: `container-${id}`,
 		priority,
 	});
-	const overObjects = useContainerObjectsOver(container);
-	const canDrop = overObjects.some((o) => o.accepted);
+	const overSurfaces = useContainerSurfacesOver(container);
+	const canDrop = overSurfaces.some((o) => o.accepted);
 
 	const { selected, pending } = useIsSelected(id);
 
 	return (
-		<Object
+		<Surface
 			className={clsx('containerFrame', { selected, pending, dance: canDrop })}
-			value={canvasObject}
+			value={canvasSurface}
 		>
-			<ObjectHandle className="containerFrameHandle" />
+			<SurfaceHandle className="containerFrameHandle" />
 			<ContainerArea
 				value={container}
 				className="container"
-				data-object-over={!!overObjects.length}
+				data-object-over={!!overSurfaces.length}
 				data-object-accepted={canDrop}
 				style={{
 					width: 200,
 					height: 200,
 				}}
 			/>
-		</Object>
+		</Surface>
 	);
 }

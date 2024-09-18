@@ -7,7 +7,7 @@ import { EventSubscriber } from '@a-type/utils';
 
 /**
  * A class which encapsulates a looping behavior for auto-panning the
- * viewport when the user drags an object near the edge of the window.
+ * viewport when the user drags an surface or tool near the edge of the window.
  * A discrete, stateful class is needed because there are no cursor events
  * which fire continually when a user's pointer is idling in the "hot zone" -
  * i.e. we have to use an animation frame loop to continually apply the pan

@@ -3,16 +3,14 @@ import { useCanvas } from '../canvas/CanvasProvider.js';
 import { Vector2 } from '../../types.js';
 import { useCallback } from 'react';
 import { GestureClaimDetail } from '../gestures/useGestureState.js';
-import { BoundsRegistryEntry } from '../../logic/BoundsRegistry.js';
-import { ContainerData, ObjectData } from '../../logic/Canvas.js';
 
 export interface BoxSelectProps {
 	className?: string;
-	onCommit?: (objectIds: Array<string>, endPosition: Vector2) => void;
+	onCommit?: (surfaceIds: Array<string>, endPosition: Vector2) => void;
 }
 
 const filter: BoxRegionFilterFn = (entry) => {
-	return entry.data.type === 'object' && !entry.data.disableSelect.current;
+	return entry.data.type === 'surface' && !entry.data.disableSelect.current;
 };
 
 export function BoxSelect({ className, onCommit }: BoxSelectProps) {
@@ -30,16 +28,16 @@ export function BoxSelect({ className, onCommit }: BoxSelectProps) {
 
 	return (
 		<BoxRegion
-			onPending={(objectIds, info) => {
-				canvas.selections.setPending(objectIds);
+			onPending={(surfaceIds, info) => {
+				canvas.selections.setPending(surfaceIds);
 			}}
-			onEnd={(objectIds, info) => {
+			onEnd={(surfaceIds, info) => {
 				if (info.shift) {
-					canvas.selections.addAll(objectIds);
+					canvas.selections.addAll(surfaceIds);
 				} else {
-					canvas.selections.set(objectIds);
+					canvas.selections.set(surfaceIds);
 				}
-				onCommit?.(objectIds, info.pointerWorldPosition);
+				onCommit?.(surfaceIds, info.pointerWorldPosition);
 			}}
 			className={className}
 			claimGesture={claimGesture}

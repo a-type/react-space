@@ -271,7 +271,6 @@ export function useCreateSurface<Metadata = any>({
 				draggingSignal.set(true);
 				blockInteractionSignal.set(true);
 				disableAnimationSignal.set(true);
-				console.log('disabled animation');
 
 				entry.transform.setGestureOffset(input.distance);
 

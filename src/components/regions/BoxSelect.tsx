@@ -1,4 +1,4 @@
-import { BoxRegion, BoxRegionFilterFn } from './BoxRegion.jsx';
+import { BoxRegion, BoxRegionFilterFn } from './BoxRegion.js';
 import { useCanvas } from '../canvas/CanvasProvider.js';
 import { Vector2 } from '../../types.js';
 import { useCallback } from 'react';

@@ -1,13 +1,17 @@
 import { useEffect, useRef } from 'react';
 import raf from 'raf';
 import { Canvas } from '../../logic/Canvas.js';
-import { addVectors } from '../../logic/math.js';
+import { Viewport } from '../../viewport.js';
 
 export interface DebugLayerProps {
-	canvas: Canvas;
+	canvas?: Canvas;
+	viewport?: Viewport;
 }
 
-export function DebugLayer({ canvas: logicalCanvas }: DebugLayerProps) {
+export function DebugLayer({
+	canvas: logicalCanvas,
+	viewport: logicalViewport,
+}: DebugLayerProps) {
 	const ref = useRef<HTMLCanvasElement | null>(null);
 
 	useEffect(() => {
@@ -18,7 +22,9 @@ export function DebugLayer({ canvas: logicalCanvas }: DebugLayerProps) {
 			const ctx = canvas.getContext('2d');
 			if (!ctx) return;
 
-			const viewport = logicalCanvas.viewport;
+			const viewport = logicalViewport ?? logicalCanvas?.viewport;
+			if (!viewport) return;
+
 			canvas.width = viewport.size.width * viewport.zoomValue;
 			canvas.height = viewport.size.height * viewport.zoomValue;
 
@@ -38,47 +44,57 @@ export function DebugLayer({ canvas: logicalCanvas }: DebugLayerProps) {
 			ctx.lineTo(origin.x + 10, origin.y);
 			ctx.stroke();
 
-			ctx.setLineDash([5, 5]);
-			ctx.strokeStyle = 'red';
-			ctx.fillStyle = 'red';
+			// draw pan limits
+			ctx.setLineDash([10, 10]);
+			ctx.strokeStyle = 'gray';
+			const panLimits = viewport.config.panLimits;
+			if (panLimits) {
+				const min = viewport.worldToViewport(panLimits.min);
+				const max = viewport.worldToViewport(panLimits.max);
+				ctx.strokeRect(min.x, min.y, max.x - min.x, max.y - min.y);
+			}
 
-			for (const objectId of logicalCanvas.bounds.ids) {
-				const entry = logicalCanvas.bounds.get(objectId);
-				if (!entry) continue;
-				if (entry.data.type === 'container') {
-					ctx.strokeStyle = 'blue';
-					ctx.fillStyle = 'blue';
-				} else {
-					ctx.strokeStyle = 'red';
-					ctx.fillStyle = 'red';
+			if (logicalCanvas) {
+				ctx.setLineDash([5, 5]);
+				ctx.strokeStyle = 'red';
+				ctx.fillStyle = 'red';
+				for (const objectId of logicalCanvas.bounds.ids) {
+					const entry = logicalCanvas.bounds.get(objectId);
+					if (!entry) continue;
+					if (entry.data.type === 'container') {
+						ctx.strokeStyle = 'blue';
+						ctx.fillStyle = 'blue';
+					} else {
+						ctx.strokeStyle = 'red';
+						ctx.fillStyle = 'red';
+					}
+					const origin = viewport.worldToViewport(
+						entry.transform.worldOrigin.value,
+					);
+					const size = viewport.worldSizeToViewport(entry.transform.size.value);
+					// const origin = entry.origin.value;
+					// const size = entry.size.value;
+					ctx.strokeRect(origin.x, origin.y, size.width, size.height);
+					ctx.fillText(objectId, origin.x, origin.y);
 				}
-				const origin = viewport.worldToViewport(
-					entry.transform.worldOrigin.value,
-				);
-				const size = viewport.worldSizeToViewport(entry.transform.size.value);
-				// const origin = entry.origin.value;
-				// const size = entry.size.value;
-				ctx.strokeRect(origin.x, origin.y, size.width, size.height);
-				ctx.fillText(objectId, origin.x, origin.y);
-			}
 
-			ctx.setLineDash([]);
-			ctx.strokeStyle = 'black';
-			for (const objectId of logicalCanvas.bounds.ids) {
-				const entry = logicalCanvas.bounds.get(objectId);
-				if (!entry) continue;
-				// draw a 3x3 crosshair at world position
-				const position = viewport.worldToViewport(
-					entry.transform.worldPosition.value,
-				);
-				ctx.beginPath();
-				ctx.moveTo(position.x - 3, position.y);
-				ctx.lineTo(position.x + 3, position.y);
-				ctx.moveTo(position.x, position.y - 3);
-				ctx.lineTo(position.x, position.y + 3);
-				ctx.stroke();
+				ctx.setLineDash([]);
+				ctx.strokeStyle = 'black';
+				for (const objectId of logicalCanvas.bounds.ids) {
+					const entry = logicalCanvas.bounds.get(objectId);
+					if (!entry) continue;
+					// draw a 3x3 crosshair at world position
+					const position = viewport.worldToViewport(
+						entry.transform.worldPosition.value,
+					);
+					ctx.beginPath();
+					ctx.moveTo(position.x - 3, position.y);
+					ctx.lineTo(position.x + 3, position.y);
+					ctx.moveTo(position.x, position.y - 3);
+					ctx.lineTo(position.x, position.y + 3);
+					ctx.stroke();
+				}
 			}
-
 			// print viewport zoom level and center point in top left
 			ctx.fillStyle = 'black';
 			ctx.fillText(
@@ -91,7 +107,7 @@ export function DebugLayer({ canvas: logicalCanvas }: DebugLayerProps) {
 		};
 		let handle = raf(loop);
 		return () => raf.cancel(handle);
-	}, [logicalCanvas]);
+	}, [logicalCanvas, logicalViewport]);
 
 	return (
 		<canvas

@@ -7,7 +7,7 @@ const MIN_POSSIBLE_ZOOM = 0.000001;
 export interface ViewportConfig {
 	/** Supply a starting zoom value. Default 1 */
 	defaultZoom?: number;
-	/** Supply a starting center position. Default 0,0 */
+	/** Supply a starting center position. Default is the middle of the pan limits or 0,0 */
 	defaultCenter?: Vector2;
 	/** Restrict pan movement to certain boundaries. Default is canvasLimits if those exist,
 	 * otherwise unbounded.
@@ -66,8 +66,8 @@ export type ViewportEvents = {
 	centerSettled(center: Readonly<Vector2>, origin: ViewportEventOrigin): void;
 	/** Fired when the size of the bound element changes */
 	sizeChanged(size: Size): void;
-	/** Fired when the size of the canvas changes */
-	canvasChanged(size: RectLimits): void;
+	/** Fired when the size of the pan limit boundaries changes */
+	panLimitsChanged(size: RectLimits | undefined): void;
 };
 
 /**
@@ -103,6 +103,7 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 		this.handleBoundElementResize,
 	);
 	private zoomFitMin = MIN_POSSIBLE_ZOOM;
+	private _contentOffset = { x: 0, y: 0 };
 
 	constructor({ boundElement, ...config }: ViewportConfig = {}) {
 		super();
@@ -121,6 +122,9 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 			panLimitMode: 'center',
 			...config,
 		};
+		this.setPanLimits(this._config.panLimits);
+
+		this._center = this.panLimitsCenter;
 
 		this.bindOrDefault(boundElement ?? null);
 
@@ -148,6 +152,19 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 		}
 		this.emit('sizeChanged', size);
 	};
+
+	private setPanLimits(newLimits: RectLimits | undefined) {
+		this.config.panLimits = newLimits;
+		if (newLimits) {
+			this._contentOffset = {
+				x: (newLimits.max.x - Math.abs(newLimits.min.x)) / 2,
+				y: (newLimits.max.y - Math.abs(newLimits.min.y)) / 2,
+			};
+		} else {
+			this._contentOffset = { x: 0, y: 0 };
+		}
+		this.emit('panLimitsChanged', newLimits);
+	}
 
 	private bindOrDefault = (element: HTMLElement | null) => {
 		if (this._boundElement && this._boundElement !== element) {
@@ -246,6 +263,16 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 		return this._boundElement;
 	}
 
+	/**
+	 * How much a 0,0 based content rectangle of the same size as
+	 * the pan limits should, by percentage, offset
+	 * itself from the origin in order to match the world position of the
+	 * pan limits.
+	 */
+	get contentOffset() {
+		return this._contentOffset;
+	}
+
 	/** Convenience getters for internal calculation */
 
 	private get halfViewportWidth() {
@@ -254,6 +281,16 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 
 	private get halfViewportHeight() {
 		return this._boundElementSize.height / 2;
+	}
+
+	private get panLimitsCenter() {
+		if (!this.config.panLimits) {
+			return { x: 0, y: 0 };
+		}
+		return {
+			x: (this.config.panLimits.max.x + this.config.panLimits.min.x) / 2,
+			y: (this.config.panLimits.max.y + this.config.panLimits.min.y) / 2,
+		};
 	}
 
 	/**
@@ -274,6 +311,7 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 			...this._config,
 			...config,
 		};
+		this.setPanLimits(this._config.panLimits);
 	};
 
 	/**

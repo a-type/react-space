@@ -1,14 +1,14 @@
 import {
 	createContext,
 	CSSProperties,
+	HTMLAttributes,
 	ReactNode,
 	useContext,
 	useEffect,
 	useRef,
-	useState,
 	useSyncExternalStore,
 } from 'react';
-import { Size, Vector2 } from '../../types.js';
+import { Vector2 } from '../../types.js';
 import { Viewport, ViewportEventOrigin } from '../../logic/Viewport.js';
 import {
 	useKeyboardControls,
@@ -31,12 +31,8 @@ export function useViewport() {
 
 export const ViewportContext = createContext<Viewport | null>(null);
 
-export interface ViewportProviderProps {
-	children?: React.ReactNode;
-	minZoom?: number;
-	maxZoom?: number;
-	defaultZoom?: number;
-	canvasSize?: Size | null;
+export interface ViewportRootProps extends HTMLAttributes<HTMLDivElement> {
+	viewport: Viewport;
 }
 
 const baseStyle: CSSProperties = {
@@ -55,11 +51,9 @@ export const ViewportRoot = ({
 	children,
 	className,
 	viewport,
-}: {
-	children: React.ReactNode;
-	className?: string;
-	viewport: Viewport;
-}) => {
+	style: userStyle,
+	...props
+}: ViewportRootProps) => {
 	const ref = useRef<HTMLDivElement>(null);
 
 	const viewportProps = useViewportGestureControls(viewport, ref);
@@ -72,11 +66,14 @@ export const ViewportRoot = ({
 		viewport.bindElement,
 	);
 
+	const style = userStyle ? { ...userStyle, ...baseStyle } : baseStyle;
+
 	return (
 		<ViewportContext.Provider value={viewport}>
 			<div
 				className={className}
-				style={baseStyle}
+				style={style}
+				{...props}
 				{...viewportProps}
 				{...keyboardProps}
 				ref={finalRef}
@@ -132,6 +129,11 @@ function ViewportSurface({
 		config: SPRINGS.RELAXED,
 	}));
 
+	const contentOffset = useSyncExternalStore(
+		(cb) => viewport.subscribe('panLimitsChanged', cb),
+		() => viewport.contentOffset,
+	);
+
 	useEffect(() => {
 		async function handleCenterChanged(
 			center: Readonly<Vector2>,
@@ -181,7 +183,7 @@ function ViewportSurface({
 					// 4. Translate the center according to the pan position
 					return `translate(${viewportSize.width / 2}px, ${
 						viewportSize.height / 2
-					}px) translate(-50%,-50%) scale(${zoomv}, ${zoomv}) translate(${-cx}px, ${-cy}px)`;
+					}px) translate(-50%, -50%) scale(${zoomv}, ${zoomv}) translate(${contentOffset.x}px, ${contentOffset.y}px) translate(${-cx}px, ${-cy}px)`;
 				}),
 				// @ts-ignore
 				'--zoom': zoom,

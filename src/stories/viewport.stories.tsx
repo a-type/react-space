@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import * as React from 'react';
 import { useCreateViewport, ViewportRoot } from '../viewport.js';
+import { DebugLayer } from '../components/canvas/DebugLayer.js';
 
 const meta = {
 	title: 'Viewport',
@@ -75,6 +76,7 @@ export const CameraControls: Story = {
 						Center
 					</button>
 				</div>
+				<DebugLayer viewport={viewport} />
 			</>
 		);
 	},
@@ -97,6 +99,42 @@ export const Unlimited: Story = {
 					/>
 				</div>
 			</ViewportRoot>
+		);
+	},
+};
+
+export const NonCentered: Story = {
+	render() {
+		const viewport = useCreateViewport({
+			zoomLimits: {
+				max: 1,
+				min: 0.5,
+			},
+			panLimits: {
+				min: { x: 0, y: 0 },
+				max: { x: 1000, y: 1000 },
+			},
+		});
+		return (
+			<>
+				<ViewportRoot
+					className="outer"
+					viewport={viewport}
+					onClick={(ev) => {
+						alert(
+							`clicked ${JSON.stringify(viewport.viewportToWorld({ x: ev.clientX, y: ev.clientY }))}`,
+						);
+					}}
+				>
+					<div style={{ width: 1000, height: 1000 }}>
+						<img
+							src="https://resources.biscuits.club/images/pashka.jpg"
+							style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+						/>
+					</div>
+				</ViewportRoot>
+				<DebugLayer viewport={viewport} />
+			</>
 		);
 	},
 };

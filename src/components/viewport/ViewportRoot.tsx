@@ -13,7 +13,7 @@ import { Viewport, ViewportEventOrigin } from '../../logic/Viewport.js';
 import {
 	useKeyboardControls,
 	useViewportGestureControls,
-} from './viewportHooks.js';
+} from './viewportInternals.js';
 import { useMergedRef } from '../../hooks.js';
 import { to, useSpring } from '@react-spring/web';
 import { SPRINGS } from '../../constants.js';
@@ -150,12 +150,14 @@ function ViewportSurface({
 			zoomValue: number,
 			origin: ViewportEventOrigin,
 		) {
-			await zoomSpring.start({
+			zoomSpring.start({
 				zoom: zoomValue,
 				immediate: origin === 'direct',
 				config: VIEWPORT_ORIGIN_SPRINGS[origin],
-			})[0];
+			});
 		}
+		handleCenterChanged(viewport.center, 'direct');
+		handleZoomChanged(viewport.zoomValue, 'direct');
 		const unsubs = [
 			viewport.subscribe('centerChanged', handleCenterChanged),
 			viewport.subscribe('zoomChanged', handleZoomChanged),

@@ -4,11 +4,16 @@ import { addVectors, clamp, clampVector, subtractVectors } from './math.js';
 
 const MIN_POSSIBLE_ZOOM = 0.000001;
 
+export interface DefaultCenter {
+	x: number | `${number}%`;
+	y: number | `${number}%`;
+}
+
 export interface ViewportConfig {
 	/** Supply a starting zoom value. Default 1 */
 	defaultZoom?: number;
 	/** Supply a starting center position. Default is the middle of the pan limits or 0,0 */
-	defaultCenter?: Vector2;
+	defaultCenter?: DefaultCenter;
 	/** Restrict pan movement to certain boundaries. Default is canvasLimits if those exist,
 	 * otherwise unbounded.
 	 */
@@ -102,15 +107,13 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 	private _boundElementResizeObserver = new ResizeObserver(
 		this.handleBoundElementResize,
 	);
-	private zoomFitMin = MIN_POSSIBLE_ZOOM;
+	private zoomFitValue = MIN_POSSIBLE_ZOOM;
 	private _contentOffset = { x: 0, y: 0 };
+	private _hasGesturePanned = false;
 
 	constructor({ boundElement, ...config }: ViewportConfig = {}) {
 		super();
 
-		if (config.defaultCenter) {
-			this._center = config.defaultCenter;
-		}
 		// intentionally not !== undefined - we ignore 0 too.
 		if (config.defaultZoom) {
 			this._zoom = config.defaultZoom;
@@ -118,13 +121,13 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 
 		this._config = {
 			defaultZoom: 1,
+			defaultCenter: { x: '50%', y: '50%' },
 			zoomLimits: { min: 'fit', max: 2 },
 			panLimitMode: 'center',
 			...config,
 		};
 		this.setPanLimits(this._config.panLimits);
-
-		this._center = this.panLimitsCenter;
+		this.resetCenter();
 
 		this.bindOrDefault(boundElement ?? null);
 
@@ -137,24 +140,34 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 		if (offset) {
 			this._boundElementOffset = offset;
 		}
+		this.updateZoomFitMin();
+		this.emit('sizeChanged', size);
+	};
+
+	private updateZoomFitMin = () => {
 		// computed as the minimum zoom level where one axis of the bounds
 		// takes up the entire viewport. if pan limits are unbounded, it
 		// defaults to MIN_POSSIBLE_ZOOM
 		if (this.config.panLimits) {
-			this.zoomFitMin = Math.min(
+			this.zoomFitValue = Math.min(
 				this._boundElementSize.width /
 					(this.config.panLimits.max.x - this.config.panLimits.min.x),
 				this._boundElementSize.height /
 					(this.config.panLimits.max.y - this.config.panLimits.min.y),
 			);
 		} else {
-			this.zoomFitMin = MIN_POSSIBLE_ZOOM;
+			this.zoomFitValue = MIN_POSSIBLE_ZOOM;
 		}
-		this.emit('sizeChanged', size);
 	};
 
 	private setPanLimits(newLimits: RectLimits | undefined) {
 		this.config.panLimits = newLimits;
+		this.updateZoomFitMin();
+		if (this._hasGesturePanned) {
+			this.reconstrainPosition({ origin: 'control' });
+		} else {
+			this.resetCenter();
+		}
 		if (newLimits) {
 			this._contentOffset = {
 				x: (newLimits.max.x - Math.abs(newLimits.min.x)) / 2,
@@ -217,7 +230,7 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 
 	get zoomMin() {
 		if (this.config.zoomLimits.min === 'fit') {
-			return this.zoomFitMin;
+			return this.zoomFitValue;
 		}
 		return this.config.zoomLimits.min;
 	}
@@ -265,7 +278,7 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 
 	/**
 	 * How much a 0,0 based content rectangle of the same size as
-	 * the pan limits should, by percentage, offset
+	 * the pan limits should, by pixels, offset
 	 * itself from the origin in order to match the world position of the
 	 * pan limits.
 	 */
@@ -291,6 +304,38 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 			x: (this.config.panLimits.max.x + this.config.panLimits.min.x) / 2,
 			y: (this.config.panLimits.max.y + this.config.panLimits.min.y) / 2,
 		};
+	}
+
+	private resetCenter() {
+		if (this.config.defaultCenter) {
+			if (this.config.panLimits) {
+				const panLimitsWidth =
+					this.config.panLimits?.max.x - this.config.panLimits?.min.x;
+				const panLimitsHeight =
+					this.config.panLimits?.max.y - this.config.panLimits?.min.y;
+
+				if (typeof this.config.defaultCenter.x === 'number') {
+					this._center.x = this.config.defaultCenter.x;
+				} else {
+					const xPercent = parseFloat(this.config.defaultCenter.x);
+					this._center.x =
+						(xPercent / 100) * panLimitsWidth + this.config.panLimits.min.x;
+				}
+				if (typeof this.config.defaultCenter.y === 'number') {
+					this._center.y = this.config.defaultCenter.y;
+				} else {
+					const yPercent = parseFloat(this.config.defaultCenter.y);
+					this._center.y =
+						(yPercent / 100) * panLimitsHeight + this.config.panLimits.min.y;
+				}
+			} else {
+				// should be 0,0 at this point.
+				this._center = this.panLimitsCenter;
+			}
+		} else {
+			this._center = this.panLimitsCenter;
+		}
+		this.emit('centerChanged', this.center, 'direct');
 	}
 
 	/**
@@ -480,13 +525,7 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 			// start out by recording the world position of the focal point before zoom
 			const priorFocalWorldPoint = this.viewportToWorld(centroid);
 			// then apply the zoom
-			this._zoom = clamp(
-				zoomValue,
-				this.config.zoomLimits.min === 'fit' ?
-					this.zoomFitMin
-				:	this.config.zoomLimits.min,
-				this.config.zoomLimits.max,
-			);
+			this._zoom = clamp(zoomValue, this.zoomMin, this.zoomMax);
 			// now determine the difference, in screen pixels, between the old focal point
 			// and the world point it used to be "over"
 			const priorFocalScreenPoint = this.worldToViewport(priorFocalWorldPoint);
@@ -497,13 +536,7 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 				gestureComplete,
 			});
 		} else {
-			this._zoom = clamp(
-				zoomValue,
-				this.config.zoomLimits.min === 'fit' ?
-					this.zoomFitMin
-				:	this.config.zoomLimits.min,
-				this.config.zoomLimits.max,
-			);
+			this._zoom = clamp(zoomValue, this.zoomMin, this.zoomMax);
 			// apply a pan with the current pan position to recalculate pan
 			// boundaries from the new zoom and enforce them
 			this.pan(this.center, { origin, gestureComplete });
@@ -549,6 +582,9 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 		if (gestureComplete) {
 			this.emit('centerSettled', this.center, origin);
 		}
+		if (origin === 'direct' || origin === 'control') {
+			this._hasGesturePanned = true;
+		}
 	};
 
 	/**
@@ -579,6 +615,9 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 		this.zoom(zoomValue, info);
 		this.pan(worldPosition, info);
 	};
+
+	private reconstrainPosition = (info?: { origin?: ViewportEventOrigin }) =>
+		this.move(this.center, this.zoomValue, info);
 
 	/**
 	 * Does the best it can to fit the provided area onscreen.

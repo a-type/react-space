@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import * as React from 'react';
-import { useCreateViewport, ViewportRoot } from '../viewport.js';
+import { useCreateViewport, useViewport, ViewportRoot } from '../viewport.js';
 import { DebugLayer } from '../components/canvas/DebugLayer.js';
+import { useCreateCanvas } from '../components/canvas/CanvasProvider.js';
+import { CanvasRoot } from '../components/canvas/CanvasRoot.js';
 
 const meta = {
 	title: 'Viewport',
@@ -108,8 +110,9 @@ export const NonCentered: Story = {
 		const viewport = useCreateViewport({
 			zoomLimits: {
 				max: 1,
-				min: 0.5,
+				min: 'fit',
 			},
+			panLimitMode: 'viewport',
 			panLimits: {
 				min: { x: 0, y: 0 },
 				max: { x: 1000, y: 1000 },
@@ -138,3 +141,47 @@ export const NonCentered: Story = {
 		);
 	},
 };
+
+export const SeparateFromCanvas: Story = {
+	render() {
+		const viewport = useCreateViewport({
+			zoomLimits: {
+				min: 'fit',
+				max: 3,
+			},
+			panLimitMode: 'viewport',
+		});
+
+		return (
+			<>
+				<ViewportRoot className="outer" viewport={viewport}>
+					<InternalCanvas />
+				</ViewportRoot>
+				<DebugLayer viewport={viewport} />
+			</>
+		);
+	},
+};
+
+function InternalCanvas() {
+	const viewport = useViewport();
+	const canvas = useCreateCanvas({ viewport });
+
+	const onImageLoad = (ev: React.SyntheticEvent<HTMLImageElement>) => {
+		const img = ev.target as HTMLImageElement;
+		canvas.resize({
+			min: { x: 0, y: 0 },
+			max: { x: img.naturalWidth, y: img.naturalHeight },
+		});
+	};
+
+	return (
+		<CanvasRoot canvas={canvas}>
+			<img
+				src="https://resources.biscuits.club/images/pashka.jpg"
+				style={{ objectFit: 'cover' }}
+				onLoad={onImageLoad}
+			/>
+		</CanvasRoot>
+	);
+}

@@ -23,8 +23,8 @@ const baseStyle: CSSProperties = {
 const centererStyle: CSSProperties = {
 	overflow: 'visible',
 	position: 'absolute',
-	top: '50%',
-	left: '50%',
+	top: 'calc(-1 * var(--canvas-min-y,0))',
+	left: 'calc(-1 * var(--canvas-min-y,0))',
 	width: 0,
 	height: 0,
 };

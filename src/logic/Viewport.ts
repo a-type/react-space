@@ -141,6 +141,7 @@ export class Viewport extends EventSubscriber<ViewportEvents> {
 			this._boundElementOffset = offset;
 		}
 		this.updateZoomFitMin();
+		this.reconstrainPosition();
 		this.emit('sizeChanged', size);
 	};
 

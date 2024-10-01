@@ -19,6 +19,7 @@ export * from './components/viewport/ViewportRoot.js';
 export * from './components/viewport/useCreateViewport.js';
 export * from './components/canvas/canvasHooks.js';
 export * from './components/canvas/DebugLayer.js';
+export * from './components/gestures/useGestureState.js';
 export * as math from './logic/math.js';
 export type * from './logic/Canvas.js';
 export type * from './logic/Viewport.js';

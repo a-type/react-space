@@ -39,13 +39,18 @@ const baseStyle: CSSProperties = {
 	width: '100%',
 	height: '100%',
 	flex: 1,
-	overflow: 'hidden',
-	userSelect: 'none',
-	cursor: 'move',
+};
+
+const requiredStyle: CSSProperties = {
 	position: 'relative',
+	cursor: 'move',
 	touchAction: 'none',
 	contain: 'strict',
+	userSelect: 'none',
+	overflow: 'hidden',
 };
+
+const defaultStyles = { ...baseStyle, ...requiredStyle };
 
 export const ViewportRoot = ({
 	children,
@@ -66,7 +71,10 @@ export const ViewportRoot = ({
 		viewport.bindElement,
 	);
 
-	const style = userStyle ? { ...userStyle, ...baseStyle } : baseStyle;
+	const style =
+		userStyle ?
+			{ ...baseStyle, ...userStyle, ...requiredStyle }
+		:	defaultStyles;
 
 	return (
 		<ViewportContext.Provider value={viewport}>

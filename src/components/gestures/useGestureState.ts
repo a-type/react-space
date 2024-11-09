@@ -42,6 +42,7 @@ export interface GestureClaimDetail {
 	isRightMouse: boolean;
 	isMiddleMouse: boolean;
 	isTouch: boolean;
+	touchesCount: number;
 	shift: boolean;
 	ctrlOrMeta: boolean;
 	alt: boolean;
@@ -76,17 +77,19 @@ export function useClaimGesture(
 				return;
 			}
 
+			const isTouch = state.event.type === 'touchstart' || state.touches > 0;
 			const detail: GestureClaimDetail = {
-				isLeftMouse: isLeftButton(state.buttons),
-				isRightMouse: isRightButton(state.buttons),
-				isMiddleMouse: isMiddleButton(state.buttons),
-				isTouch: state.event.type === 'touchstart' || state.touches > 0,
+				isLeftMouse: !isTouch && isLeftButton(state.buttons),
+				isRightMouse: !isTouch && isRightButton(state.buttons),
+				isMiddleMouse: !isTouch && isMiddleButton(state.buttons),
+				isTouch,
 				shift: state.event.shiftKey,
 				ctrlOrMeta: state.event.ctrlKey || state.event.metaKey,
 				alt: state.event.altKey,
 				target: state.target,
 				existingClaimType: gestureState.claimType,
 				existingClaimId: gestureState.claimedBy,
+				touchesCount: state.touches,
 			};
 
 			if (filter(detail)) {

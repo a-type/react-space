@@ -1,6 +1,6 @@
 import { proxy, useSnapshot } from 'valtio';
 import { useCanvas } from '../canvas/CanvasProvider.js';
-import { useDrag } from '@use-gesture/react';
+import { useGesture } from '@use-gesture/react';
 import {
 	isLeftButton,
 	isMiddleButton,
@@ -24,7 +24,6 @@ export function resetGestureState() {
 export function claimGesture(type: 'canvas'): void;
 export function claimGesture(type: 'surface' | 'tool', id: string): void;
 export function claimGesture(type: 'surface' | 'tool' | 'canvas', id?: string) {
-	console.log('claiming for', type, id);
 	gestureState.claimedBy = id ?? null;
 	gestureState.claimType = type;
 }
@@ -42,7 +41,6 @@ export interface GestureClaimDetail {
 	isRightMouse: boolean;
 	isMiddleMouse: boolean;
 	isTouch: boolean;
-	isPinch: boolean;
 	touchesCount: number;
 	shift: boolean;
 	ctrlOrMeta: boolean;
@@ -50,6 +48,7 @@ export interface GestureClaimDetail {
 	target: EventTarget;
 	existingClaimType: 'surface' | 'tool' | 'canvas' | null;
 	existingClaimId: string | null;
+	eventType: string;
 }
 
 /**
@@ -65,38 +64,51 @@ export function useClaimGesture(
 	{
 		onCanvas,
 		overrideOtherClaim,
-	}: { onCanvas?: boolean; overrideOtherClaim?: boolean } = {},
+	}: {
+		onCanvas?: boolean;
+		overrideOtherClaim?: boolean;
+	} = {},
 ) {
 	const canvas = useCanvas();
-	return useDrag(
-		(state) => {
-			if (!state.first) {
-				return;
-			}
+	return useGesture(
+		{
+			onDrag: (state) => {
+				// unless configured, a gesture cannot take a claim from another gesture
+				if (
+					gestureState.claimedBy &&
+					gestureState.claimedBy !== id &&
+					!overrideOtherClaim
+				) {
+					return;
+				}
 
-			if (gestureState.claimedBy && !overrideOtherClaim) {
-				return;
-			}
+				// gestures can only claim in the first frame
+				if (!state.first) {
+					return;
+				}
 
-			const isTouch = state.event.type === 'touchstart' || state.touches > 0;
-			const detail: GestureClaimDetail = {
-				isLeftMouse: !isTouch && isLeftButton(state.buttons),
-				isRightMouse: !isTouch && isRightButton(state.buttons),
-				isMiddleMouse: !isTouch && isMiddleButton(state.buttons),
-				isTouch,
-				shift: state.event.shiftKey,
-				ctrlOrMeta: state.event.ctrlKey || state.event.metaKey,
-				alt: state.event.altKey,
-				target: state.target,
-				existingClaimType: gestureState.claimType,
-				existingClaimId: gestureState.claimedBy,
-				touchesCount: state.touches,
-				isPinch: !!state.pinching,
-			};
+				const isTouch = state.event.type === 'touchstart' || state.touches > 0;
+				const detail: GestureClaimDetail = {
+					isLeftMouse: !isTouch && isLeftButton(state.buttons),
+					isRightMouse: !isTouch && isRightButton(state.buttons),
+					isMiddleMouse: !isTouch && isMiddleButton(state.buttons),
+					isTouch,
+					shift: state.event.shiftKey,
+					ctrlOrMeta: state.event.ctrlKey || state.event.metaKey,
+					alt: state.event.altKey,
+					target: state.target,
+					existingClaimType: gestureState.claimType,
+					existingClaimId: gestureState.claimedBy,
+					touchesCount: state.touches,
+					eventType: state.event.type,
+				};
 
-			if (filter(detail)) {
-				claimGesture(type, id);
-			}
+				if (filter(detail)) {
+					claimGesture(type, id);
+				} else if (gestureState.claimedBy === id) {
+					resetGestureState();
+				}
+			},
 		},
 		{
 			target: onCanvas ? canvas.gestureLayerRef : undefined,

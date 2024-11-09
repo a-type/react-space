@@ -10,7 +10,10 @@ import {
 	SurfaceData,
 } from '../../logic/Canvas.js';
 import { useCanvas } from './CanvasProvider.js';
-import { gestureState } from '../gestures/useGestureState.js';
+import {
+	gestureState,
+	resetGestureState,
+} from '../gestures/useGestureState.js';
 
 export function useSurfaceEntry(surfaceId: string) {
 	const canvas = useCanvas();
@@ -98,18 +101,42 @@ export function useCanvasGestures(handlers: {
 	}, [canvas]);
 }
 
+type CanvasClaimedGestureTools = {
+	/**
+	 * You can abandon a gesture mid-way, which will
+	 * release the claim and call the onAbandoned handler.
+	 * No further gesture handlers will be called for
+	 * the active user gesture.
+	 */
+	abandon: () => void;
+};
+
 export function useClaimedGestures(
 	handlers: {
-		onDragStart?: (info: CanvasGestureInput) => void;
-		onDrag?: (info: CanvasGestureInput) => void;
+		onDragStart?: (
+			info: CanvasGestureInput,
+			tools: CanvasClaimedGestureTools,
+		) => void;
+		onDrag?: (
+			info: CanvasGestureInput,
+			tools: CanvasClaimedGestureTools,
+		) => void;
 		onDragEnd?: (info: CanvasGestureInput) => void;
 		onTap?: (info: CanvasGestureInput) => void;
+		onAbandon?: () => void;
 	},
 	surfaceId: string,
 ) {
 	const canvas = useCanvas();
 	const handlersRef = useRef(handlers);
 	handlersRef.current = handlers;
+
+	const claimToolsRef = useRef({
+		abandon: () => {
+			resetGestureState();
+			handlersRef.current?.onAbandon?.();
+		},
+	});
 
 	useEffect(() => {
 		const unsubs = [
@@ -119,7 +146,7 @@ export function useClaimedGestures(
 					(selected && gestureState.claimType === 'surface') ||
 					info.targetId === surfaceId
 				) {
-					handlersRef.current.onDragStart?.(info);
+					handlersRef.current.onDragStart?.(info, claimToolsRef.current);
 				}
 			}),
 			canvas.subscribe('claimedDrag', (info) => {
@@ -128,7 +155,7 @@ export function useClaimedGestures(
 					(selected && gestureState.claimType === 'surface') ||
 					info.targetId === surfaceId
 				) {
-					handlersRef.current.onDrag?.(info);
+					handlersRef.current.onDrag?.(info, claimToolsRef.current);
 				}
 			}),
 			canvas.subscribe('claimedDragEnd', (info) => {

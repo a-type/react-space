@@ -19,6 +19,7 @@ export interface CanvasGestureInfo {
 	alt: boolean;
 	ctrlOrMeta: boolean;
 	inputType: 'mouse1' | 'mouse2' | 'mouse3' | 'touch' | 'unknown';
+	touchesCount: number;
 	/**
 	 * Whether the gesture is definitely intentional by the user.
 	 */

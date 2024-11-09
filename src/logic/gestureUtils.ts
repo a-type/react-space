@@ -20,6 +20,7 @@ export function applyGestureState(
 	input.screenDelta.x = state.delta[0];
 	input.screenDelta.y = state.delta[1];
 	input.pointerWorldPosition = worldPosition;
+	input.touchesCount = state.touches;
 }
 
 export function isTouchEvent(event: Event) {

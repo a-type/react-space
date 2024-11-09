@@ -199,6 +199,7 @@ function useCanvasGestures({
 				// reset gesture details
 				gestureDetails.current.buttons = 0;
 				gestureDetails.current.isTouch = false;
+				gestureDetails.current.isTouch = false;
 
 				autoPan.stop();
 				resetGestureInputEvent();
@@ -233,6 +234,7 @@ function useGestureInputEvent() {
 		screenDelta: { x: 0, y: 0 },
 		pointerWorldPosition: { x: 0, y: 0 },
 		defaultPrevented: false,
+		touchesCount: 0,
 		preventDefault() {
 			ref.current.defaultPrevented = true;
 		},
@@ -251,6 +253,7 @@ function useGestureInputEvent() {
 		ref.current.screenDelta = { x: 0, y: 0 };
 		ref.current.pointerWorldPosition = { x: 0, y: 0 };
 		ref.current.defaultPrevented = false;
+		ref.current.touchesCount = 0;
 	}, []);
 	return [ref, reset] as const;
 }

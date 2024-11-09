@@ -434,6 +434,7 @@ function useGestureEvent() {
 		containerId: undefined,
 		position: { x: 0, y: 0 },
 		inputType: 'unknown',
+		touchesCount: 0,
 		preventDefault: () => {
 			ref.current.defaultPrevented = true;
 		},
@@ -452,6 +453,7 @@ function useGestureEvent() {
 		ref.current.position = { x: 0, y: 0 };
 		ref.current.inputType = 'unknown';
 		ref.current.defaultPrevented = false;
+		ref.current.touchesCount = 0;
 	}, []);
 
 	const copyFrom = useCallback((info: CanvasGestureInput) => {
@@ -461,6 +463,7 @@ function useGestureEvent() {
 		ref.current.distance = info.distance;
 		ref.current.intentional = info.intentional;
 		ref.current.targetId = info.targetId;
+		ref.current.touchesCount = info.touchesCount;
 	}, []);
 
 	return [ref, reset, copyFrom] as const;

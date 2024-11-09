@@ -42,6 +42,7 @@ export interface GestureClaimDetail {
 	isRightMouse: boolean;
 	isMiddleMouse: boolean;
 	isTouch: boolean;
+	isPinch: boolean;
 	touchesCount: number;
 	shift: boolean;
 	ctrlOrMeta: boolean;
@@ -90,6 +91,7 @@ export function useClaimGesture(
 				existingClaimType: gestureState.claimType,
 				existingClaimId: gestureState.claimedBy,
 				touchesCount: state.touches,
+				isPinch: !!state.pinching,
 			};
 
 			if (filter(detail)) {

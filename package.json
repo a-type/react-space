@@ -40,8 +40,8 @@
 		"valtio": "^2.0.0"
 	},
 	"peerDependencies": {
-		"react": "^18.3.1",
-		"react-dom": "^18.3.1"
+		"react": "^19",
+		"react-dom": "^19"
 	},
 	"devDependencies": {
 		"@chromatic-com/storybook": "1.9.0",
@@ -54,11 +54,11 @@
 		"@storybook/react-vite": "^8.2.9",
 		"@storybook/test": "^8.2.9",
 		"@types/raf": "^3.4.3",
-		"@types/react": "^18.3.5",
-		"@types/react-dom": "^18.3.0",
+		"@types/react": "^19.0.2",
+		"@types/react-dom": "^19.0.2",
 		"clsx": "^2.1.1",
-		"react": "^18.3.1",
-		"react-dom": "^18.3.1",
+		"react": "19.0.0",
+		"react-dom": "19.0.0",
 		"storybook": "^8.2.9",
 		"typescript": "^5.5.4"
 	}

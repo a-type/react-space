@@ -2,10 +2,12 @@ import { animated, useSpring } from '@react-spring/web';
 import { useGesture } from '@use-gesture/react';
 import { Fragment, JSX, useEffect, useRef } from 'react';
 import { react } from 'signia';
-import { useObjectIds, useSurfaceEntry } from './canvas/canvasHooks.js';
 import { Canvas } from '../logic/Canvas.js';
 import { Viewport } from '../viewport.js';
+import { useObjectIds, useSurfaceEntry } from './canvas/canvasHooks.js';
 import { CanvasProvider } from './canvas/CanvasProvider.js';
+
+const ARect = animated.rect as any;
 
 export interface MinimapProps {
 	canvas: Canvas;
@@ -181,7 +183,7 @@ function MinimapViewportRect({
 	}, [viewport, spring]);
 
 	return (
-		<animated.rect
+		<ARect
 			x={x}
 			y={y}
 			width={width}
@@ -225,7 +227,7 @@ function MinimapLimitsRect({
 	}, [canvas, spring]);
 
 	return (
-		<animated.rect
+		<ARect
 			x={x}
 			y={y}
 			width={width}

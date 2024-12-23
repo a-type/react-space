@@ -87,7 +87,7 @@ function noop() {}
 
 export function useViewportGestureControls(
 	viewport: Viewport,
-	ref: RefObject<HTMLElement>,
+	ref: RefObject<HTMLElement | null>,
 	handleCursorMove?: (pos: Vector2, active: boolean) => void,
 ) {
 	const initialZoom = viewport.config.defaultZoom;

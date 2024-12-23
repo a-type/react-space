@@ -1,5 +1,6 @@
 import { animated, useSpring } from '@react-spring/web';
 import { useId, useRef } from 'react';
+import { BoundsRegistryEntry } from '../../logic/BoundsRegistry.js';
 import {
 	CanvasGestureInput,
 	ContainerData,
@@ -12,7 +13,8 @@ import {
 	GestureClaimDetail,
 	useClaimGesture,
 } from '../gestures/useGestureState.js';
-import { BoundsRegistryEntry } from '../../logic/BoundsRegistry.js';
+
+const ARect = animated.rect as any;
 
 export interface BoxRegionProps {
 	onPending?: (surfaceIds: Array<string>, info: CanvasGestureInput) => void;
@@ -133,7 +135,7 @@ export function BoxRegion({
 	);
 
 	return (
-		<animated.rect
+		<ARect
 			x={x}
 			y={y}
 			width={width}

@@ -1,3 +1,4 @@
+import { animated } from '@react-spring/web';
 import {
 	createContext,
 	CSSProperties,
@@ -16,7 +17,8 @@ import { ContainerPortal } from '../container/ContainerPortal.js';
 import { CONTAINER_STATE } from './private.js';
 import { useLiveElementPosition } from './signalHooks.js';
 import { CanvasSurface } from './useCreateSurface.js';
-import { animated } from '@react-spring/web';
+
+const ADiv = animated.div as any;
 
 export interface SurfaceRootProps extends HTMLAttributes<HTMLDivElement> {
 	surface: CanvasSurface<any>;
@@ -77,7 +79,7 @@ export const SurfaceRoot = function SurfaceRoot({
 	return (
 		<ContainerPortal containerId={parent}>
 			<SurfaceContext.Provider value={value}>
-				<animated.div
+				<ADiv
 					ref={finalRef}
 					style={{
 						...style,
@@ -99,7 +101,7 @@ export const SurfaceRoot = function SurfaceRoot({
 							{children}
 						</div>
 					}
-				</animated.div>
+				</ADiv>
 			</SurfaceContext.Provider>
 		</ContainerPortal>
 	);

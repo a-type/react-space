@@ -68,6 +68,14 @@ export class BoundsRegistry<
 	private sizeObserver: ResizeObserver;
 	private spatialHash = new SpatialHash<string>(100);
 	private spatialHashRecomputeTimers = new Map<string, any>();
+	private globalBounds: Box = {
+		x: 0,
+		y: 0,
+		width: 0,
+		height: 0,
+	};
+	private globalBoundsRecomputeTimer: ReturnType<typeof setTimeout> | null =
+		null;
 
 	constructor() {
 		super();
@@ -95,6 +103,7 @@ export class BoundsRegistry<
 			);
 			this.entries.set(id, entry);
 			this.emit('entryReplaced', id);
+			this.updateGlobal();
 		} else {
 			throw new Error(`Entry already exists for ${id}`);
 		}
@@ -104,6 +113,7 @@ export class BoundsRegistry<
 
 	private onEntryChange = (id: string, bounds: Box) => {
 		this.debouncedUpdateHash(id, bounds);
+		this.debouncedUpdateGlobal();
 	};
 
 	private onElementChange = (
@@ -139,6 +149,41 @@ export class BoundsRegistry<
 		);
 	};
 
+	updateGlobal = () => {
+		const ids = this.ids;
+		let container = this.getCurrentBounds(ids[0]);
+		if (!container) {
+			return null;
+		}
+
+		for (let i = 1; i < ids.length; i++) {
+			const bounds = this.getCurrentBounds(ids[i]);
+			if (!bounds) {
+				continue;
+			}
+
+			container = {
+				x: Math.min(container.x, bounds.x),
+				y: Math.min(container.y, bounds.y),
+				width: Math.max(container.width, bounds.x - container.x + bounds.width),
+				height: Math.max(
+					container.height,
+					bounds.y - container.y + bounds.height,
+				),
+			};
+		}
+		this.globalBounds = container;
+	};
+
+	private debouncedUpdateGlobal = () => {
+		if (this.globalBoundsRecomputeTimer) {
+			clearTimeout(this.globalBoundsRecomputeTimer);
+		}
+		this.globalBoundsRecomputeTimer = setTimeout(() => {
+			this.updateGlobal();
+		}, 500);
+	};
+
 	private cleanupDeregistered = () => {
 		for (const id of this.deregistered) {
 			const entry = this.entries.get(id);
@@ -156,6 +201,10 @@ export class BoundsRegistry<
 	get<TSpecific extends TDataTypes>(id: string) {
 		return this.entries.get(id) as BoundsRegistryEntry<TSpecific> | undefined;
 	}
+
+	getGlobal = () => {
+		return this.globalBounds;
+	};
 
 	get ids() {
 		return Array.from(this.entries.keys());
